@@ -1,0 +1,27 @@
+[project]
+name = "ai-doc-qa"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Darsh-Bothra", email = "darshbothra007@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.19.1",
+    "dotenv>=0.9.9",
+    "email-validator>=2.3.0",
+    "fastapi>=0.141.1",
+    "psycopg[binary]>=3.3.4",
+    "pwdlib[argon2]>=0.3.1",
+    "pyjwt[crypto]>=2.13.0",
+    "sqlalchemy>=2.0.52",
+    "uvicorn>=0.52.2",
+]
+
+[project.scripts]
+ai-doc-qa = "ai_doc_qa:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"

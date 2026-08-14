@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: ai_doc_qa_postgres
+    environment:
+      POSTGRES_USER: ai_doc_qa
+      POSTGRES_PASSWORD: pg**ai**doc
+      POSTGRES_DB: doc_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
