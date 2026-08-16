@@ -24,23 +24,23 @@ def test_route():
         "message": "Testing route"
     }
 
-@app.post("/test-upload")
-async def test_upload(
-    file: UploadFile
-): 
-    content = await file.read()
-    file_path = UPLOAD_DIR / file.filename
+# @app.post("/test-upload")
+# async def test_upload(
+#     file: UploadFile
+# ): 
+#     content = await file.read()
+#     file_path = UPLOAD_DIR / file.filename
 
-    with file_path.open("wb") as buffer:
-        while chunk := await file.read(1024 * 1024):
-            buffer.write(chunk)
+#     with file_path.open("wb") as buffer:
+#         while chunk := await file.read(1024 * 1024):
+#             buffer.write(chunk)
 
-    return {
-        "file_name": file.filename,
-        "path": str(file_path),
-        "content_type": file.content_type,
-        "size": len(content)
-    }
+#     return {
+#         "file_name": file.filename,
+#         "path": str(file_path),
+#         "content_type": file.content_type,
+#         "size": len(content)
+#     }
 
 
 

@@ -15,5 +15,5 @@ class UserLogin(BaseModel):
     password: str
 
 class LoginResponse(BaseModel):
-    access_token: int
+    access_token: str
     token_type: str

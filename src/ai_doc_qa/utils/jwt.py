@@ -10,8 +10,6 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from ai_doc_qa.db.db import get_db
-
 
 load_dotenv()
 
