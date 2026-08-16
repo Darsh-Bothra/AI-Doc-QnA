@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_doc_qa.db.db import get_db
 
-from ai_doc_qa.services.document_processing import extract_text
 
 from ai_doc_qa.api.routes.auth import router as auth_router
 from ai_doc_qa.api.routes.documents import router as docs_router
+
+from ai_doc_qa.services.document_processing import extract_text
+from ai_doc_qa.services.chunker import BasicChunker
 
 from pathlib import Path
 
@@ -57,4 +59,6 @@ async def test_connection(db: AsyncSession=Depends(get_db)):
 
 
 text = extract_text("uploaded_documents/test-1.pdf")
-print(text)
+chunks = BasicChunker(text).basic_chunker()
+print(f"Number of chunks: {len(chunks)}")
+print(f"Chunks: {chunks}")
