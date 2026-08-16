@@ -31,6 +31,10 @@ coverage.xml
 .tox/
 .nox/
 
+# User uploads
+uploaded_documents/*
+!uploaded_documents/.gitkeep
+
 # Local databases and logs
 *.db
 *.sqlite3
