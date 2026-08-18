@@ -9,10 +9,11 @@ from ai_doc_qa.db.db import get_db
 from ai_doc_qa.api.routes.auth import router as auth_router
 from ai_doc_qa.api.routes.documents import router as docs_router
 
-from ai_doc_qa.services.document_processing import extract_text
-from ai_doc_qa.services.chunker import BasicChunker
+from ai_doc_qa.services.ingestion.pipeline import IngestionPipeline
 
 from pathlib import Path
+
+from ai_doc_qa.services.ingestion.service import IngestionService
 
 app = FastAPI()
 
@@ -57,8 +58,4 @@ async def test_connection(db: AsyncSession=Depends(get_db)):
         "message": "DB created successfully"
     }
 
-
-text = extract_text("uploaded_documents/test-1.pdf")
-chunks = BasicChunker(text).basic_chunker()
-print(f"Number of chunks: {len(chunks)}")
-print(f"Chunks: {chunks}")
+# text = extract_text("uploaded_documents/test-1.pdf")

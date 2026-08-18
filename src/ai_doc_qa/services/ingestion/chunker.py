@@ -1,3 +1,5 @@
+import re
+
 class BasicChunker:
     def __init__(self, document: str, chunk_size: int = 100, overlap: int = 10):
         if chunk_size <= 0:
@@ -20,6 +22,23 @@ class BasicChunker:
             chunks.append(self.document[idx:idx + self.chunk_size])
             idx += step
         return chunks
+    
+class StructureAwareChunker:
+    def __init__(self, document: str, chunk_size: int = 100, overlap: int = 10):
+        self.document = document
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+
+    def split_section(self):
+        section = re.split(
+            r'(?=^#{1,6}\s+)',
+            self.document,
+            flags=re.MULTILINE,
+        )
+
+        return [
+            section.strip() for section in section if section.strip()
+        ]
     
 
 if __name__ == "__main__":

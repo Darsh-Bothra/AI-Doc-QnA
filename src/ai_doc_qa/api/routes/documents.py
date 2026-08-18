@@ -1,7 +1,7 @@
 from uuid import uuid4
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,8 @@ from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
 from ai_doc_qa.schemas.document import DocumentListResponse, DocumentResponse
+
+from ai_doc_qa.services.ingestion.service import IngestionService
 
 UPLOAD_DIR = Path("uploaded_documents")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -98,6 +100,13 @@ async def upload_docs(
 
         await db.commit()
         await db.refresh(new_doc)
+
+        # Initialize the ingestion service
+        ingestion_service = IngestionService(db)
+        await ingestion_service.process_document(
+            file_path=str(file_path),
+            document_id=new_doc.id
+        )
 
         return new_doc
 

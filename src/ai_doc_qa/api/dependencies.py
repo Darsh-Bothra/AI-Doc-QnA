@@ -7,6 +7,8 @@ from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.user import User
 from ai_doc_qa.utils.jwt import decode_access_token
 
+from ai_doc_qa.services.ingestion.service import IngestionService
+
 
 protected = APIRouter(
     prefix="/protected",
