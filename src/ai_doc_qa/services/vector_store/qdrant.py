@@ -47,17 +47,22 @@ class QdrantService:
         *,
         user_id: int,
         limit: int = 5,
+        document_id: int | None = None,
     ) -> list[dict]:
         from qdrant_client.http.models import Filter, FieldCondition, MatchValue
-
+        must = [
+            FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+        ]
+        if document_id is not None:
+            must.append(
+                FieldCondition(key="document_id", match=MatchValue(value=document_id))
+            )
         res = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,
             limit=limit,
             query_filter=Filter(
-                must=[
-                    FieldCondition(key="user_id", match=MatchValue(value=user_id))
-                ]
+                must=must
             ),
             with_payload=True,
         )

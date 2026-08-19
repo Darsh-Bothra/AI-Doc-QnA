@@ -10,16 +10,17 @@ from ai_doc_qa.api.dependencies import get_current_user
 from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
-from ai_doc_qa.schemas.document import DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse, SearchHit
+from ai_doc_qa.schemas.document import AskRequest, AskResponse, DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse, SearchHit
 
 from ai_doc_qa.services.ingestion.service import IngestionService
+from ai_doc_qa.services.rag.service import RAGService
 from ai_doc_qa.services.retrieval.service import RetrievalService
 
 import asyncio
 
 UPLOAD_DIR = Path("uploaded_documents")
 UPLOAD_DIR.mkdir(exist_ok=True)
-ALLOWED_CONTENT_TYPES = {
+ALLOWED_CONTENT_TYPES = {  
     "application/pdf",
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -182,8 +183,29 @@ async def search_docs(
             retrieval.retrieve,
             req.question,
             user_id=user.id,
+            document_id=req.document_id,
             limit=req.limit,
         )
     except Exception:
         raise HTTPException(status_code=503, detail="Search temporarily unavailable.")
     return SearchResponse(question=req.question, results=hits)
+
+
+@router.post("/{document_id}/ask", response_model=AskResponse)
+async def ask_doc(
+    req: AskRequest,
+    document_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(Document).where(Document.id == document_id, Document.user_id == user.id)
+    result = await db.execute(query)
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found."
+        )
+    rag = RAGService()
+    response = rag.run(question=req.query, user_id=user.id, document_id=document_id)
+    return AskResponse(answer=response)
