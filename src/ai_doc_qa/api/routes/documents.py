@@ -10,9 +10,12 @@ from ai_doc_qa.api.dependencies import get_current_user
 from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
-from ai_doc_qa.schemas.document import DocumentListResponse, DocumentResponse
+from ai_doc_qa.schemas.document import DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse, SearchHit
 
 from ai_doc_qa.services.ingestion.service import IngestionService
+from ai_doc_qa.services.retrieval.service import RetrievalService
+
+import asyncio
 
 UPLOAD_DIR = Path("uploaded_documents")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -166,3 +169,21 @@ async def delete_doc(
     return {
         "message": "Document deleted successfully"
     }
+
+
+@router.post("/search", response_model=SearchResponse)
+async def search_docs(
+    req: SearchRequest,
+    user: User = Depends(get_current_user),
+):
+    retrieval = RetrievalService()  # better: FastAPI Depends + singleton
+    try:
+        hits = await asyncio.to_thread(
+            retrieval.retrieve,
+            req.question,
+            user_id=user.id,
+            limit=req.limit,
+        )
+    except Exception:
+        raise HTTPException(status_code=503, detail="Search temporarily unavailable.")
+    return SearchResponse(question=req.question, results=hits)
