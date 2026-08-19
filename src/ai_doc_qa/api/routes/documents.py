@@ -10,7 +10,7 @@ from ai_doc_qa.api.dependencies import get_current_user
 from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
-from ai_doc_qa.schemas.document import AskRequest, AskResponse, DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse, SearchHit
+from ai_doc_qa.schemas.document import AskRequest, AskResponse, DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse
 
 from ai_doc_qa.services.ingestion.service import IngestionService
 from ai_doc_qa.services.rag.service import RAGService
@@ -79,6 +79,7 @@ async def upload_docs(
 
     filename = f"{uuid4()}.pdf"
     file_path = UPLOAD_DIR / filename
+    document_persisted = False
 
     try:
         file_size = 0
@@ -103,6 +104,7 @@ async def upload_docs(
         db.add(new_doc)
         await db.commit()
         await db.refresh(new_doc)
+        document_persisted = True
         document_id = new_doc.id
 
         # Initialize the ingestion service
@@ -113,21 +115,22 @@ async def upload_docs(
             user_id=user.id,
         )
 
+        await db.refresh(new_doc)
         return new_doc
 
     except HTTPException:
-        await db.rollback()
-
-        if file_path.exists():
-            file_path.unlink()
+        if not document_persisted:
+            await db.rollback()
+            if file_path.exists():
+                file_path.unlink()
 
         raise
 
     except Exception:
-        await db.rollback()
-
-        if file_path.exists():
-            file_path.unlink()
+        if not document_persisted:
+            await db.rollback()
+            if file_path.exists():
+                file_path.unlink()
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -176,7 +179,26 @@ async def delete_doc(
 async def search_docs(
     req: SearchRequest,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
+    if req.document_id is not None:
+        query = select(Document).where(
+            Document.id == req.document_id,
+            Document.user_id == user.id,
+        )
+        result = await db.execute(query)
+        document = result.scalar_one_or_none()
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found.",
+            )
+        if document.status != DocumentStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Document is not ready for search (status={document.status.value}).",
+            )
+
     retrieval = RetrievalService()  # better: FastAPI Depends + singleton
     try:
         hits = await asyncio.to_thread(
@@ -205,6 +227,11 @@ async def ask_doc(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found."
+        )
+    if document.status != DocumentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Document is not ready for questions (status={document.status.value}).",
         )
     rag = RAGService()
     response = rag.run(question=req.query, user_id=user.id, document_id=document_id)

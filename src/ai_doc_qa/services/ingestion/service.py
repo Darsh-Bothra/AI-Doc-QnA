@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.services.ingestion.pipeline import IngestionPipeline
 from ai_doc_qa.services.ingestion.repository import DocumentChunkRepository
 
@@ -11,46 +12,66 @@ class IngestionService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def _set_status(self, document_id: int, status: DocumentStatus) -> None:
+        try:
+            doc = await self.db.get(Document, document_id)
+            if doc is None:
+                return
+            doc.status = status
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            doc = await self.db.get(Document, document_id)
+            if doc is None:
+                return
+            doc.status = status
+            await self.db.commit()
+
     async def process_document(
         self,
         file_path: str,
         document_id: int,
         user_id: int
     ):
+        try:
+            # 1. Extract + chunk
+            pipeline = IngestionPipeline(
+                file_path=file_path,
+                document_id=document_id,
+                user_id=user_id,
+            )
 
-        # 1. Extract + chunk
-        pipeline = IngestionPipeline(
-            file_path=file_path,
-            document_id=document_id,
-            user_id=user_id,
-        )
+            chunks = pipeline.run()
 
-        chunks = pipeline.run()
+            # 2. Store chunks in PostgreSQL
+            repository = DocumentChunkRepository(self.db)
 
-        # 2. Store chunks in PostgreSQL
-        repository = DocumentChunkRepository(self.db)
+            saved_chunks = await repository.create_chunks(chunks)
 
-        saved_chunks = await repository.create_chunks(chunks)
+            # 3. Generate embeddings
+            embedding_service = EmbeddingService()
 
-        # 3. Generate embeddings
-        embedding_service = EmbeddingService()
+            texts = [chunk.text for chunk in saved_chunks]
+            vectors = embedding_service.get_embeddings(texts)
 
-        texts = [chunk.text for chunk in saved_chunks]
-        vectors = embedding_service.get_embeddings(texts)
+            # 4. Store vectors in Qdrant
+            qdrant = QdrantService()
 
-        # 4. Store vectors in Qdrant
-        qdrant = QdrantService()
+            qdrant.upsert_chunks(
+                chunk_ids=[chunk.id for chunk in saved_chunks],
+                vectors=vectors,
+                payloads=[
+                    {
+                        "document_id": document_id,
+                        "chunk_index": chunk.chunk_index,
+                        "user_id": user_id,
+                        "text": chunk.text,
+                    } 
+                    for chunk in saved_chunks
+                ]
+            )
+        except Exception:
+            await self._set_status(document_id, DocumentStatus.FAILED)
+            raise
 
-        qdrant.upsert_chunks(
-            chunk_ids=[chunk.id for chunk in saved_chunks],
-            vectors=vectors,
-            payloads=[
-                {
-                    "document_id": document_id,
-                    "chunk_index": chunk.chunk_index,
-                    "user_id": user_id,
-                    "text": chunk.text,
-                } 
-                for chunk in saved_chunks
-            ]
-        )
+        await self._set_status(document_id, DocumentStatus.COMPLETED)
