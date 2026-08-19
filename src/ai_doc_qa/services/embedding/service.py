@@ -18,19 +18,20 @@ class EmbeddingService:
         self.dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
         self.client = OpenAI(api_key=api_key)
 
-    def get_embedding(self, text: str) -> list[float]:
-        clean_text = text.replace("\n", " ")
+    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        embeddings = []
+        for text in texts:  
+            response = self.client.embeddings.create(
+                input=text,
+                model=self.model,
+                dimensions=self.dimensions,
+            )   
+            embeddings.append(response.data[0].embedding)
 
-        response = self.client.embeddings.create(
-            input=clean_text,
-            model=self.model,
-            dimensions=self.dimensions,
-        )
-
-        return response.data[0].embedding
+        return embeddings
 
 
 if __name__ == "__main__":
     embedding_service = EmbeddingService()
-    print(len(embedding_service.get_embedding("Hello, world!")))
-    print(embedding_service.get_embedding("Hello, world!"))
+    print(len(embedding_service.get_embeddings("Hello, world!")))
+    print(embedding_service.get_embeddings("Hello, world!"))

@@ -97,15 +97,16 @@ async def upload_docs(
         )
 
         db.add(new_doc)
-
         await db.commit()
         await db.refresh(new_doc)
+        document_id = new_doc.id
 
         # Initialize the ingestion service
         ingestion_service = IngestionService(db)
         await ingestion_service.process_document(
             file_path=str(file_path),
-            document_id=new_doc.id
+            document_id=document_id,
+            user_id=user.id,
         )
 
         return new_doc
