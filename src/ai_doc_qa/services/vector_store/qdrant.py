@@ -48,6 +48,7 @@ class QdrantService:
         user_id: int,
         limit: int = 5,
         document_id: int | None = None,
+        score_threshold: float = 0.5,
     ) -> list[dict]:
         from qdrant_client.http.models import Filter, FieldCondition, MatchValue
         must = [
@@ -75,6 +76,7 @@ class QdrantService:
                 "chunk_id": hit.id
             }
             for hit in res.points
+            if hit.score >= score_threshold
         ]
 
 
