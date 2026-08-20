@@ -37,3 +37,4 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
+    sources: list[SearchHit]

@@ -39,17 +39,8 @@ class QdrantService:
         ]
         self.client.upsert(collection_name=self.collection, points=points)
 
-    
 
-    def search(
-        self,
-        query_vector: list[float],
-        *,
-        user_id: int,
-        limit: int = 5,
-        document_id: int | None = None,
-        score_threshold: float = 0.5,
-    ) -> list[dict]:
+    def search(self, query_vector: list[float], *, user_id: int, limit: int = 5, document_id: int | None = None, score_threshold: float = 0.2) -> list[dict]:
         from qdrant_client.http.models import Filter, FieldCondition, MatchValue
         must = [
             FieldCondition(key="user_id", match=MatchValue(value=user_id)),
@@ -78,6 +69,23 @@ class QdrantService:
             for hit in res.points
             if hit.score >= score_threshold
         ]
+
+    def delete_document(self, *, user_id: int, document_id: int) -> None:
+        from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+
+        if not self.client.collection_exists(self.collection):
+            return
+        
+        self.client.delete(
+            collection_name=self.collection,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                    FieldCondition(key="document_id", match=MatchValue(value=document_id))
+                ]
+            ),
+        )
+
 
 
 

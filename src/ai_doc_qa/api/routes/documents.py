@@ -18,6 +18,8 @@ from ai_doc_qa.services.retrieval.service import RetrievalService
 
 import asyncio
 
+from ai_doc_qa.services.vector_store.qdrant import QdrantService
+
 UPLOAD_DIR = Path("uploaded_documents")
 UPLOAD_DIR.mkdir(exist_ok=True)
 ALLOWED_CONTENT_TYPES = {  
@@ -30,7 +32,7 @@ router = APIRouter(
     tags=["Document processing route"]
 )
 
-@router.get("/")
+@router.get("/", response_model=DocumentListResponse)
 async def get_docs(
     user: User=Depends(get_current_user),
     db: AsyncSession=Depends(get_db)
@@ -41,10 +43,10 @@ async def get_docs(
 
     return DocumentListResponse(
         total_count=len(documents),
-        documents=documents
+        documents=documents,
     )
     
-@router.get("/{document_id}")
+@router.get("/{document_id}", response_model=DocumentResponse)
 async def get_doc(
     document_id: int,
     user: User = Depends(get_current_user),
@@ -147,7 +149,7 @@ async def delete_doc(
     user: User = Depends(get_current_user),
     db: AsyncSession=Depends(get_db)
 ):
-    query = select(Document).where(Document.id == document_id)
+    query = select(Document).where(Document.id == document_id, Document.user_id == user.id)
     result = await db.execute(query)
     doc = result.scalar_one_or_none()
 
@@ -157,19 +159,14 @@ async def delete_doc(
             detail="Document not found."
         )   
     
-    if doc.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to delete this document."
-        )
-    
+    QdrantService().delete_document(user_id=user.id, document_id=document_id)
+
     await db.delete(doc)
     # Delete the file path also
     file_path = Path(doc.path)
+    await db.commit()
     if file_path.exists():
         file_path.unlink()
-    await db.commit()
-
     return {
         "message": "Document deleted successfully"
     }
@@ -234,5 +231,5 @@ async def ask_doc(
             detail=f"Document is not ready for questions (status={document.status.value}).",
         )
     rag = RAGService()
-    response = rag.run(question=req.query, user_id=user.id, document_id=document_id)
-    return AskResponse(answer=response)
+    response, hits = rag.run(question=req.query, user_id=user.id, document_id=document_id)
+    return AskResponse(answer=response, sources=hits)
