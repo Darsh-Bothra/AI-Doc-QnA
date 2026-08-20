@@ -1,3 +1,4 @@
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_doc_qa.db.models.document import Document, DocumentStatus
@@ -37,8 +38,7 @@ class IngestionService:
         self,
         file_path: str,
         document_id: int,
-        user_id: int,
-        background_tasks: BackgroundTasks,
+        user_id: int
     ):
         try:
             # 1. Extract + chunk
@@ -48,7 +48,7 @@ class IngestionService:
                 user_id=user_id,
             )
 
-            chunks = pipeline.run()
+            chunks = await asyncio.to_thread(pipeline.run)
 
             # 2. Store chunks in PostgreSQL
             repository = DocumentChunkRepository(self.db)
@@ -59,12 +59,13 @@ class IngestionService:
             embedding_service = EmbeddingService()
 
             texts = [chunk.text for chunk in saved_chunks]
-            vectors = embedding_service.get_embeddings(texts)
+            vectors = await asyncio.to_thread(embedding_service.get_embeddings, texts)
 
             # 4. Store vectors in Qdrant
             qdrant = QdrantService()
 
-            qdrant.upsert_chunks(
+            await asyncio.to_thread(
+                qdrant.upsert_chunks,
                 chunk_ids=[chunk.id for chunk in saved_chunks],
                 vectors=vectors,
                 payloads=[
@@ -73,9 +74,9 @@ class IngestionService:
                         "chunk_index": chunk.chunk_index,
                         "user_id": user_id,
                         "text": chunk.text,
-                    } 
+                    }
                     for chunk in saved_chunks
-                ]
+                ],
             )
 
         except Exception as e:

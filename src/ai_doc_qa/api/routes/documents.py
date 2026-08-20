@@ -12,13 +12,13 @@ from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
 from ai_doc_qa.schemas.document import AskRequest, AskResponse, DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse
 
-from ai_doc_qa.services.ingestion.service import IngestionService
 from ai_doc_qa.services.rag.service import RAGService
 from ai_doc_qa.services.retrieval.service import RetrievalService
 
 import asyncio
 
 from ai_doc_qa.services.vector_store.qdrant import QdrantService
+from ai_doc_qa.utils.task import run_ingestion_service
 
 UPLOAD_DIR = Path("uploaded_documents")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -69,10 +69,10 @@ async def get_doc(
 
 @router.post("/", response_model=DocumentResponse)
 async def upload_docs(
+    background_tasks: BackgroundTasks,
     file: UploadFile,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: AsyncSession = Depends(get_db)
 ):
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -110,20 +110,12 @@ async def upload_docs(
         document_persisted = True
         document_id = new_doc.id
 
-        # Initialize the ingestion service
-        ingestion_service = IngestionService(db)
-        await ingestion_service.process_document(
-            file_path=str(file_path),
-            document_id=document_id,
-            user_id=user.id,
+        run_ingestion_service(
+            background_tasks=background_tasks,
+            document_id=document_id, 
+            file_path=str(file_path), 
+            user_id=user.id
         )
-        # background_tasks.add_task(
-        #     ingestion_service.process_document,
-        #     file_path=str(file_path),
-        #     document_id=document_id,
-        #     user_id=user.id,
-        #     background_tasks=background_tasks,
-        # )
 
         await db.refresh(new_doc)
         return new_doc
@@ -133,7 +125,6 @@ async def upload_docs(
             await db.rollback()
             if file_path.exists():
                 file_path.unlink()
-
         raise
 
     except Exception:

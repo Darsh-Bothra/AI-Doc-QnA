@@ -2,8 +2,8 @@
     DB_URL -> SQLAlchemy engine -> Session Factory -> Db session
 """
 import os
-from fastapi import FastAPI, Depends
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from dotenv import load_dotenv
 
 load_dotenv()
