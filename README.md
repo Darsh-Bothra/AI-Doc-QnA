@@ -10,6 +10,8 @@ A FastAPI backend for **question answering over uploaded PDFs**. Users register 
 
 Search and ask only work on documents whose status is `completed`.
 
+For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**.
+
 ## Stack
 
 - **Python 3.11+** (see `.python-version`)
@@ -160,6 +162,8 @@ Search and ask return **409** if the document is not `completed`, and search ret
 
 ```
 ai-doc-qa/
+├── docs/
+│   └── tech-architecture.md     # Stack, architecture, and diagrams
 ├── docker-compose.yaml          # Local Postgres 17 + Qdrant
 ├── alembic.ini                  # Alembic config (URL from POSTGRES_URL)
 ├── pyproject.toml               # Package metadata and dependencies
@@ -204,7 +208,8 @@ ai-doc-qa/
     │   └── rag/                 # Retrieve + prompt + LLM
     └── utils/
         ├── jwt.py               # Access tokens
-        └── security.py          # Argon2 hashing
+        ├── security.py          # Argon2 hashing
+        └── task.py              # Background ingestion + its own DB session
 ```
 
 ## License
