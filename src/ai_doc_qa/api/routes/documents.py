@@ -1,7 +1,7 @@
 from uuid import uuid4
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status, BackgroundTasks
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +71,8 @@ async def get_doc(
 async def upload_docs(
     file: UploadFile,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -116,6 +117,13 @@ async def upload_docs(
             document_id=document_id,
             user_id=user.id,
         )
+        # background_tasks.add_task(
+        #     ingestion_service.process_document,
+        #     file_path=str(file_path),
+        #     document_id=document_id,
+        #     user_id=user.id,
+        #     background_tasks=background_tasks,
+        # )
 
         await db.refresh(new_doc)
         return new_doc

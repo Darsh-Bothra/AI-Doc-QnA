@@ -1,7 +1,7 @@
 from ai_doc_qa.db.models.base import Base
 
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Enum, DateTime, ForeignKey, func
+from sqlalchemy import String, Enum, DateTime, ForeignKey, Text, func
 
 from datetime import datetime
 import enum
@@ -40,6 +40,11 @@ class Document(Base):
         Enum(DocumentStatus),
         default=DocumentStatus.PROCESSING,
         nullable=False
+    )
+
+    error_message: Mapped[str | None] = mapped_column(
+        Text, 
+        nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(

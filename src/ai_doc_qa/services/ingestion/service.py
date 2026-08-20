@@ -7,31 +7,38 @@ from ai_doc_qa.services.ingestion.repository import DocumentChunkRepository
 from ai_doc_qa.services.embedding.service import EmbeddingService
 from ai_doc_qa.services.vector_store.qdrant import QdrantService
 
+
 class IngestionService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def _set_status(self, document_id: int, status: DocumentStatus) -> None:
-        try:
-            doc = await self.db.get(Document, document_id)
-            if doc is None:
-                return
-            doc.status = status
-            await self.db.commit()
-        except Exception:
-            await self.db.rollback()
-            doc = await self.db.get(Document, document_id)
-            if doc is None:
-                return
-            doc.status = status
-            await self.db.commit()
+    async def _set_status(
+        self,
+        document_id: int,
+        status: DocumentStatus,
+        error_message: str | None = None,
+    ) -> None:
+        doc = await self.db.get(Document, document_id)
+
+        if doc is None:
+            return
+
+        doc.status = status
+
+        if status == DocumentStatus.COMPLETED:
+            doc.error_message = None
+        elif error_message is not None:
+            doc.error_message = error_message
+
+        await self.db.commit()
 
     async def process_document(
         self,
         file_path: str,
         document_id: int,
-        user_id: int
+        user_id: int,
+        background_tasks: BackgroundTasks,
     ):
         try:
             # 1. Extract + chunk
@@ -70,8 +77,16 @@ class IngestionService:
                     for chunk in saved_chunks
                 ]
             )
-        except Exception:
-            await self._set_status(document_id, DocumentStatus.FAILED)
+
+        except Exception as e:
+            await self._set_status(
+                document_id,
+                DocumentStatus.FAILED,
+                error_message=str(e),
+            )
             raise
 
-        await self._set_status(document_id, DocumentStatus.COMPLETED)
+        await self._set_status(
+            document_id,
+            DocumentStatus.COMPLETED,
+        )

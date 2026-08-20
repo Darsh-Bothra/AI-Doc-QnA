@@ -6,6 +6,7 @@ class DocumentResponse(BaseModel):
     id: int
     name: str
     status: Literal["processing", "completed", "failed"]
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
