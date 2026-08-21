@@ -17,16 +17,20 @@ class EmbeddingService:
         self.model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
         self.dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
         self.client = OpenAI(api_key=api_key)
+        self.batch_size = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         embeddings = []
-        for text in texts:  
+        for i in range(0, len(texts), self.batch_size):  
+            batch = texts[i:i+self.batch_size]
             response = self.client.embeddings.create(
-                input=text,
+                input=batch,
                 model=self.model,
                 dimensions=self.dimensions,
-            )   
-            embeddings.append(response.data[0].embedding)
+            )
+            embeddings.extend(
+                [embedding.embedding for embedding in response.data]
+            )
 
         return embeddings
 
