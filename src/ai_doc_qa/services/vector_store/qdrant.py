@@ -1,35 +1,35 @@
-import os
-from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 
-load_dotenv()
+from ai_doc_qa.settings import settings
 
-class QdrantService:    
+
+class QdrantService:
     def __init__(self):
-        self.url = os.environ.get("QDRANT_URL", "http://localhost:6333")
-        self.collection = os.getenv("QDRANT_COLLECTION", "document_chunks")
-        self.dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
-        self.client = QdrantClient(
-            url=self.url
-        )
-    
+        self.url = settings.qdrant_url
+        self.collection = settings.qdrant_collection
+        self.dimensions = settings.embedding_dimensions
+        self.score_threshold = settings.qdrant_score_threshold
+        self.client = QdrantClient(url=self.url)
+
     def ensure_collection(self) -> None:
         if self.client.collection_exists(self.collection):
             return
-        
+
         self.client.create_collection(
             collection_name=self.collection,
             vectors_config=VectorParams(
-                size=self.dimensions,   # must match EmbeddingService
+                size=self.dimensions,
                 distance=Distance.COSINE,
             ),
         )
-    
-    def upsert_chunks(self, 
-        *, chunk_ids: list[int], 
+
+    def upsert_chunks(
+        self,
+        *,
+        chunk_ids: list[int],
         vectors: list[list[float]],
-        payloads: list[dict]
+        payloads: list[dict],
     ) -> None:
         self.ensure_collection()
 
@@ -39,9 +39,20 @@ class QdrantService:
         ]
         self.client.upsert(collection_name=self.collection, points=points)
 
-
-    def search(self, query_vector: list[float], *, user_id: int, limit: int = 5, document_id: int | None = None, score_threshold: float = 0.2) -> list[dict]:
+    def search(
+        self,
+        query_vector: list[float],
+        *,
+        user_id: int,
+        limit: int = 5,
+        document_id: int | None = None,
+        score_threshold: float | None = None,
+    ) -> list[dict]:
         from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+
+        if score_threshold is None:
+            score_threshold = self.score_threshold
+
         must = [
             FieldCondition(key="user_id", match=MatchValue(value=user_id)),
         ]
@@ -75,7 +86,7 @@ class QdrantService:
 
         if not self.client.collection_exists(self.collection):
             return
-        
+
         self.client.delete(
             collection_name=self.collection,
             points_selector=Filter(
@@ -85,9 +96,6 @@ class QdrantService:
                 ]
             ),
         )
-
-
-
 
 
 if __name__ == "__main__":
@@ -103,7 +111,7 @@ if __name__ == "__main__":
     q.ensure_collection()
     emb = EmbeddingService()
 
-    vectors = [emb.get_embedding(text) for text in texts]
+    vectors = [emb.get_embeddings([text])[0] for text in texts]
     payloads = [
         {
             "document_id": 1,
@@ -115,14 +123,14 @@ if __name__ == "__main__":
     ]
 
     q.upsert_chunks(
-        chunk_ids=[101, 102, 103],  # any unique ints
+        chunk_ids=[101, 102, 103],
         vectors=vectors,
         payloads=payloads,
     )
     print("upserted 3 points")
 
     query = "Python web development"
-    query_vector = emb.get_embedding(query)
+    query_vector = emb.get_embeddings([query])[0]
     hits = q.search(query_vector, user_id=1, limit=3)
 
     print(f"\nQuery: {query!r}\n")

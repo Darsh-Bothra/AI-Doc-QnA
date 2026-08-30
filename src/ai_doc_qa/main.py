@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 from fastapi import FastAPI, Depends, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -9,20 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_doc_qa.db.db import get_db
 from ai_doc_qa.api.routes.auth import router as auth_router
 from ai_doc_qa.api.routes.documents import router as docs_router
+from ai_doc_qa.settings import settings
 
 app = FastAPI()
 
-_cors_origins = [
-    origin.strip()
-    for origin in os.getenv(
-        "CORS_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000",
-    ).split(",")
-    if origin.strip()
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,8 +21,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(docs_router)
 
-UPLOAD_DIR = Path("uploaded_documents")
-UPLOAD_DIR.mkdir(exist_ok=True)
+settings.upload_dir.mkdir(exist_ok=True)
+
 
 @app.get("/")
 def test_route():
@@ -40,15 +30,16 @@ def test_route():
         "message": "Testing route"
     }
 
+
 @app.post("/test-upload")
 async def test_upload(
     file: UploadFile
-): 
+):
     content = await file.read()
-    file_path = UPLOAD_DIR / file.filename
+    file_path = settings.upload_dir / file.filename
 
     with file_path.open("wb") as buffer:
-        while chunk := await file.read(1024 * 1024):
+        while chunk := await file.read(settings.read_buffer_size):
             buffer.write(chunk)
 
     return {
@@ -59,14 +50,11 @@ async def test_upload(
     }
 
 
-
 @app.get("/health/db")
-async def test_connection(db: AsyncSession=Depends(get_db)):
+async def test_connection(db: AsyncSession = Depends(get_db)):
     res = await db.execute(text("SELECT 1"))
     value = res.scalar()
     return {
         "result": value,
         "message": "DB created successfully"
     }
-
-# text = extract_text("uploaded_documents/test-1.pdf")

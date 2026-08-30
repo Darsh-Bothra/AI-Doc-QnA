@@ -1,28 +1,19 @@
-import os
-
-from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+from ai_doc_qa.settings import settings
 
 
 class EmbeddingService:
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY is missing. Add it to your .env in the project root."
-            )
-
-        self.model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-        self.dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
-        self.client = OpenAI(api_key=api_key)
-        self.batch_size = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))
+        self.model = settings.embedding_model
+        self.dimensions = settings.embedding_dimensions
+        self.batch_size = settings.embedding_batch_size
+        self.client = OpenAI(api_key=settings.openai_api_key)
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         embeddings = []
-        for i in range(0, len(texts), self.batch_size):  
-            batch = texts[i:i+self.batch_size]
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i:i + self.batch_size]
             response = self.client.embeddings.create(
                 input=batch,
                 model=self.model,

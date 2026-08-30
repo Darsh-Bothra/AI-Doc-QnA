@@ -10,16 +10,13 @@ from ai_doc_qa.db.models.user import User
 from ai_doc_qa.db.models.document import Document
 from ai_doc_qa.db.models.document_chunk import DocumentChunk
 
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
+from ai_doc_qa.settings import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.environ["POSTGRES_URL"])
+config.set_main_option("sqlalchemy.url", settings.postgres_url)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

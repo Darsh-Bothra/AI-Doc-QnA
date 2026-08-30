@@ -3,6 +3,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status, BackgroundTasks
 
+from ai_doc_qa.settings import settings
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,12 +22,7 @@ import asyncio
 from ai_doc_qa.services.vector_store.qdrant import QdrantService
 from ai_doc_qa.utils.task import run_ingestion_service
 
-UPLOAD_DIR = Path("uploaded_documents")
-UPLOAD_DIR.mkdir(exist_ok=True)
-ALLOWED_CONTENT_TYPES = {  
-    "application/pdf",
-}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+settings.upload_dir.mkdir(exist_ok=True)
 
 router = APIRouter(
     prefix="/documents",
@@ -74,23 +71,23 @@ async def upload_docs(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if file.content_type not in ALLOWED_CONTENT_TYPES:
+    if file.content_type not in settings.allowed_content_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF files are supported."
         )
 
     filename = f"{uuid4()}.pdf"
-    file_path = UPLOAD_DIR / filename
+    file_path = settings.upload_dir / filename
     document_persisted = False
 
     try:
         file_size = 0
 
         with file_path.open("wb") as buffer:
-            while chunk := await file.read(1024 * 1024):
+            while chunk := await file.read(settings.read_buffer_size):
                 file_size += len(chunk)
-                if file_size > MAX_FILE_SIZE:
+                if file_size > settings.max_file_size:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         detail="File too large."

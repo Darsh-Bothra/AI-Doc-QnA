@@ -1,24 +1,21 @@
-
-import os
 from openai import OpenAI
-from dotenv import load_dotenv
 
 from ai_doc_qa.services.rag.prompt import RAG_SYSTEM_PROMPT
+from ai_doc_qa.settings import settings
 
-load_dotenv()
 
 class LLMService:
     def __init__(self) -> None:
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    
+        self.client = OpenAI(api_key=settings.openai_api_key)
+
     def generate(self, context: str):
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.openai_model,
             messages=[
                 {"role": "system", "content": RAG_SYSTEM_PROMPT},
                 {"role": "user", "content": context}
             ],
-            temperature=0.2
+            temperature=settings.llm_temperature,
         )
 
         return response.choices[0].message.content
