@@ -1,38 +1,51 @@
-from uuid import uuid4
+import asyncio
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status, BackgroundTasks
-
-from ai_doc_qa.settings import settings
-
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_doc_qa.api.dependencies import get_current_user
 from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.document import Document, DocumentStatus
 from ai_doc_qa.db.models.user import User
-from ai_doc_qa.schemas.document import AskRequest, AskResponse, DocumentListResponse, DocumentResponse, SearchRequest, SearchResponse
-
+from ai_doc_qa.exceptions import (
+    DatabaseError,
+    LLMGenerationError,
+    RetrievalError,
+    VectorStoreError,
+)
+from ai_doc_qa.schemas.document import (
+    AskRequest,
+    AskResponse,
+    DocumentListResponse,
+    DocumentResponse,
+    SearchRequest,
+    SearchResponse,
+)
 from ai_doc_qa.services.rag.service import RAGService
 from ai_doc_qa.services.retrieval.service import RetrievalService
-
-import asyncio
-
 from ai_doc_qa.services.vector_store.qdrant import QdrantService
+from ai_doc_qa.settings import settings
 from ai_doc_qa.utils.task import run_ingestion_service
 
 settings.upload_dir.mkdir(exist_ok=True)
 
-router = APIRouter(
-    prefix="/documents",
-    tags=["Document processing route"]
-)
+router = APIRouter(prefix="/documents", tags=["Document processing route"])
+
 
 @router.get("/", response_model=DocumentListResponse)
 async def get_docs(
-    user: User=Depends(get_current_user),
-    db: AsyncSession=Depends(get_db)
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     query = select(Document).where(user.id == Document.user_id)
     result = await db.execute(query)
@@ -42,24 +55,21 @@ async def get_docs(
         total_count=len(documents),
         documents=documents,
     )
-    
+
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_doc(
     document_id: int,
     user: User = Depends(get_current_user),
-    db: AsyncSession=Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     query = select(Document).where(
-        Document.id == document_id,
-        Document.user_id == user.id
+        Document.id == document_id, Document.user_id == user.id
     )
     result = await db.execute(query)
     document = result.scalar_one_or_none()
     if not document:
-        raise HTTPException(
-            status_code=404,
-            detail="Document not found"
-        )
+        raise HTTPException(status_code=404, detail="Document not found")
 
     return document
 
@@ -69,12 +79,12 @@ async def upload_docs(
     background_tasks: BackgroundTasks,
     file: UploadFile,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     if file.content_type not in settings.allowed_content_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only PDF files are supported."
+            detail="Only PDF files are supported.",
         )
 
     filename = f"{uuid4()}.pdf"
@@ -90,7 +100,7 @@ async def upload_docs(
                 if file_size > settings.max_file_size:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="File too large."
+                        detail="File too large.",
                     )
                 buffer.write(chunk)
 
@@ -98,7 +108,7 @@ async def upload_docs(
             user_id=user.id,
             name=file.filename,
             path=str(file_path),
-            status=DocumentStatus.PROCESSING
+            status=DocumentStatus.PROCESSING,
         )
 
         db.add(new_doc)
@@ -109,9 +119,9 @@ async def upload_docs(
 
         run_ingestion_service(
             background_tasks=background_tasks,
-            document_id=document_id, 
-            file_path=str(file_path), 
-            user_id=user.id
+            document_id=document_id,
+            file_path=str(file_path),
+            user_id=user.id,
         )
 
         await db.refresh(new_doc)
@@ -124,7 +134,7 @@ async def upload_docs(
                 file_path.unlink()
         raise
 
-    except Exception:
+    except (OSError, SQLAlchemyError, DatabaseError) as exc:
         if not document_persisted:
             await db.rollback()
             if file_path.exists():
@@ -132,30 +142,37 @@ async def upload_docs(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to upload document."
-        )
+            detail="Failed to upload document.",
+        ) from exc
 
     finally:
         await file.close()
-    
+
 
 @router.delete("/{document_id}")
 async def delete_doc(
     document_id: int,
     user: User = Depends(get_current_user),
-    db: AsyncSession=Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    query = select(Document).where(Document.id == document_id, Document.user_id == user.id)
+    query = select(Document).where(
+        Document.id == document_id, Document.user_id == user.id
+    )
     result = await db.execute(query)
     doc = result.scalar_one_or_none()
 
     if not doc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found."
-        )   
-    
-    QdrantService().delete_document(user_id=user.id, document_id=document_id)
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found."
+        )
+
+    try:
+        QdrantService().delete_document(user_id=user.id, document_id=document_id)
+    except VectorStoreError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to delete document vectors.",
+        )
 
     await db.delete(doc)
     # Delete the file path also
@@ -163,9 +180,7 @@ async def delete_doc(
     await db.commit()
     if file_path.exists():
         file_path.unlink()
-    return {
-        "message": "Document deleted successfully"
-    }
+    return {"message": "Document deleted successfully"}
 
 
 @router.post("/search", response_model=SearchResponse)
@@ -201,8 +216,11 @@ async def search_docs(
             document_id=req.document_id,
             limit=req.limit,
         )
-    except Exception:
-        raise HTTPException(status_code=503, detail="Search temporarily unavailable.")
+    except RetrievalError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Search temporarily unavailable.",
+        )
     return SearchResponse(question=req.question, results=hits)
 
 
@@ -211,15 +229,16 @@ async def ask_doc(
     req: AskRequest,
     document_id: int,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    query = select(Document).where(Document.id == document_id, Document.user_id == user.id)
+    query = select(Document).where(
+        Document.id == document_id, Document.user_id == user.id
+    )
     result = await db.execute(query)
     document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found."
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found."
         )
     if document.status != DocumentStatus.COMPLETED:
         raise HTTPException(
@@ -227,5 +246,13 @@ async def ask_doc(
             detail=f"Document is not ready for questions (status={document.status.value}).",
         )
     rag = RAGService()
-    response, hits = rag.run(question=req.query, user_id=user.id, document_id=document_id)
+    try:
+        response, hits = rag.run(
+            question=req.query, user_id=user.id, document_id=document_id
+        )
+    except (RetrievalError, LLMGenerationError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Question answering temporarily unavailable.",
+        )
     return AskResponse(answer=response, sources=hits)

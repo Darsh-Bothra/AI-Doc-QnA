@@ -1,12 +1,10 @@
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import jwt
-from jwt.exceptions import InvalidTokenError
-
-from datetime import datetime, timedelta, timezone
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import InvalidTokenError
 
 from ai_doc_qa.settings import settings
 
@@ -19,15 +17,13 @@ def create_access_token(
 ):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=settings.access_token_expire_minutes
         )
 
-    to_encode.update({
-        "exp": expire
-    })
+    to_encode.update({"exp": expire})
 
     encoded_jwt = jwt.encode(
         to_encode,
@@ -38,9 +34,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(
-    token: Annotated[str, Depends(oauth2_scheme)]
-):
+def decode_access_token(token: Annotated[str, Depends(oauth2_scheme)]):
     cred_execption = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Can't validate credentials",

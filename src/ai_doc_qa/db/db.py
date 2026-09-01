@@ -1,7 +1,8 @@
 """
-    DB_URL -> SQLAlchemy engine -> Session Factory -> Db session
+DB_URL -> SQLAlchemy engine -> Session Factory -> Db session
 """
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from ai_doc_qa.settings import settings
 

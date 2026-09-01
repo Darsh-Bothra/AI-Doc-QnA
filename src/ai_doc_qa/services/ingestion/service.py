@@ -1,16 +1,16 @@
 import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_doc_qa.db.models.document import Document, DocumentStatus
+from ai_doc_qa.exceptions import AppError
+from ai_doc_qa.services.embedding.service import EmbeddingService
 from ai_doc_qa.services.ingestion.pipeline import IngestionPipeline
 from ai_doc_qa.services.ingestion.repository import DocumentChunkRepository
-
-from ai_doc_qa.services.embedding.service import EmbeddingService
 from ai_doc_qa.services.vector_store.qdrant import QdrantService
 
 
 class IngestionService:
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -34,12 +34,7 @@ class IngestionService:
 
         await self.db.commit()
 
-    async def process_document(
-        self,
-        file_path: str,
-        document_id: int,
-        user_id: int
-    ):
+    async def process_document(self, file_path: str, document_id: int, user_id: int):
         try:
             # 1. Extract + chunk
             pipeline = IngestionPipeline(
@@ -79,7 +74,7 @@ class IngestionService:
                 ],
             )
 
-        except Exception as e:
+        except AppError as e:
             await self._set_status(
                 document_id,
                 DocumentStatus.FAILED,

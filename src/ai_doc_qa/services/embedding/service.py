@@ -1,5 +1,6 @@
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
+from ai_doc_qa.exceptions import EmbeddingError
 from ai_doc_qa.settings import settings
 
 
@@ -12,16 +13,19 @@ class EmbeddingService:
 
     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         embeddings = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
-            response = self.client.embeddings.create(
-                input=batch,
-                model=self.model,
-                dimensions=self.dimensions,
-            )
-            embeddings.extend(
-                [embedding.embedding for embedding in response.data]
-            )
+        try:
+            for i in range(0, len(texts), self.batch_size):
+                batch = texts[i : i + self.batch_size]
+                response = self.client.embeddings.create(
+                    input=batch,
+                    model=self.model,
+                    dimensions=self.dimensions,
+                )
+                embeddings.extend(
+                    [embedding.embedding for embedding in response.data]
+                )
+        except OpenAIError as exc:
+            raise EmbeddingError("Failed to generate embeddings.") from exc
 
         return embeddings
 

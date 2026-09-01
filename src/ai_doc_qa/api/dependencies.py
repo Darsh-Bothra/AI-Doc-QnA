@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
@@ -7,18 +6,12 @@ from ai_doc_qa.db.db import get_db
 from ai_doc_qa.db.models.user import User
 from ai_doc_qa.utils.jwt import decode_access_token
 
-from ai_doc_qa.services.ingestion.service import IngestionService
+protected = APIRouter(prefix="/protected", tags=["Protected"])
 
-
-protected = APIRouter(
-    prefix="/protected",
-    tags=["Protected"]
-)
 
 async def get_current_user(
-    payload=Depends(decode_access_token), 
-    db: AsyncSession=Depends(get_db)
-):  
+    payload=Depends(decode_access_token), db: AsyncSession = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -34,9 +27,10 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise credentials_exception 
-    
+        raise credentials_exception
+
     return user
+
 
 @protected.get("/")
 async def get_users(current_user: User = Depends(get_current_user)):
