@@ -1,15 +1,9 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 from ai_doc_qa.db.models.base import Base
-from ai_doc_qa.db.models.user import User
-from ai_doc_qa.db.models.document import Document
-from ai_doc_qa.db.models.document_chunk import DocumentChunk
-
 from ai_doc_qa.settings import settings
 
 # this is the Alembic Config object, which provides
