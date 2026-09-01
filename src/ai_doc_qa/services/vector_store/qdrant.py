@@ -104,9 +104,7 @@ class QdrantService:
                 collection_name=self.collection,
                 points_selector=Filter(
                     must=[
-                        FieldCondition(
-                            key="user_id", match=MatchValue(value=user_id)
-                        ),
+                        FieldCondition(key="user_id", match=MatchValue(value=user_id)),
                         FieldCondition(
                             key="document_id",
                             match=MatchValue(value=document_id),

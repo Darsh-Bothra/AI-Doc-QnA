@@ -21,9 +21,7 @@ class EmbeddingService:
                     model=self.model,
                     dimensions=self.dimensions,
                 )
-                embeddings.extend(
-                    [embedding.embedding for embedding in response.data]
-                )
+                embeddings.extend([embedding.embedding for embedding in response.data])
         except OpenAIError as exc:
             raise EmbeddingError("Failed to generate embeddings.") from exc
 
