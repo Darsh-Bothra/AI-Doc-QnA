@@ -13,6 +13,7 @@ Rules:
 5. Keep answers clear, concise, and structured.
 """
 
+
 def user_prompt(context: str, question: str) -> str:
     return f"""Context from database:
 ---

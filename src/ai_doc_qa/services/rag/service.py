@@ -7,9 +7,13 @@ class RAGService:
     def __init__(self):
         self.retrieval = RetrievalService()
         self.llm = LLMService()
-    
-    def run(self, question: str, user_id: int, document_id: int, *, limit: int = 5) -> tuple[str, list[dict]]:
-        hits = self.retrieval.retrieve(question=question, user_id=user_id, document_id=document_id, limit=limit)
+
+    def run(
+        self, question: str, user_id: int, document_id: int, *, limit: int = 5
+    ) -> tuple[str, list[dict]]:
+        hits = self.retrieval.retrieve(
+            question=question, user_id=user_id, document_id=document_id, limit=limit
+        )
         # texts = [h["text"] for h in hits if h.get("text")]
         context_parts = [
             f"[Source {i + 1}]\n{hit['text']}"
@@ -20,7 +24,7 @@ class RAGService:
         if not context_parts:
             return (
                 "I'm sorry, but I do not have enough information to answer that question.",
-                hits
+                hits,
             )
 
         context = "\n\n".join(context_parts)

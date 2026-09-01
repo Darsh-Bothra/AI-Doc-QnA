@@ -1,11 +1,11 @@
-from fastapi import FastAPI, Depends, UploadFile
+from fastapi import Depends, FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.db.db import get_db
 from ai_doc_qa.api.routes.auth import router as auth_router
 from ai_doc_qa.api.routes.documents import router as docs_router
+from ai_doc_qa.db.db import get_db
 from ai_doc_qa.settings import settings
 
 app = FastAPI()
@@ -26,15 +26,11 @@ settings.upload_dir.mkdir(exist_ok=True)
 
 @app.get("/")
 def test_route():
-    return {
-        "message": "Testing route"
-    }
+    return {"message": "Testing route"}
 
 
 @app.post("/test-upload")
-async def test_upload(
-    file: UploadFile
-):
+async def test_upload(file: UploadFile):
     content = await file.read()
     file_path = settings.upload_dir / file.filename
 
@@ -46,7 +42,7 @@ async def test_upload(
         "file_name": file.filename,
         "path": str(file_path),
         "content_type": file.content_type,
-        "size": len(content)
+        "size": len(content),
     }
 
 
@@ -54,7 +50,4 @@ async def test_upload(
 async def test_connection(db: AsyncSession = Depends(get_db)):
     res = await db.execute(text("SELECT 1"))
     value = res.scalar()
-    return {
-        "result": value,
-        "message": "DB created successfully"
-    }
+    return {"result": value, "message": "DB created successfully"}

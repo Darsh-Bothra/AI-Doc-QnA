@@ -1,21 +1,23 @@
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from ai_doc_qa.services.ingestion.models import ChunkPayload
+
 from ai_doc_qa.db.models.document_chunk import DocumentChunk
+from ai_doc_qa.exceptions import DatabaseError
+from ai_doc_qa.services.ingestion.models import ChunkPayload
+
 
 class DocumentChunkRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_chunks(
-        self,
-        chunks: list[ChunkPayload]
-    ):
+    async def create_chunks(self, chunks: list[ChunkPayload]):
         rows = [
             DocumentChunk(
                 document_id=chunk.document_id,
                 chunk_index=chunk.chunk_id,
-                text=chunk.text
-            ) for chunk in chunks
+                text=chunk.text,
+            )
+            for chunk in chunks
         ]
         try:
             self.db.add_all(rows)
@@ -26,6 +28,6 @@ class DocumentChunkRepository:
 
             return rows
 
-        except Exception:
+        except SQLAlchemyError as exc:
             await self.db.rollback()
-            raise
+            raise DatabaseError("Failed to persist document chunks.") from exc
