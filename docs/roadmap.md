@@ -2,7 +2,7 @@
 
 This document is the forward-looking companion to [tech-architecture.md](tech-architecture.md). That file describes what exists today and why; this one describes what to build next, in what order, and what to read while doing it.
 
-For runbooks (install, env vars, smoke tests), see the [README](../README.md).
+For runbooks (install, env vars, smoke tests), see the [README](../README.md). For how to learn and build CI/CD on this repo (concepts, GitHub Actions, staged homework, resource links), see [ci-cd.md](ci-cd.md).
 
 ---
 
@@ -106,9 +106,9 @@ Small, unglamorous, and blocking. Everything here is a prerequisite for the clai
   - chunker unit tests (including the oversized-section case that currently fails);
   - ingest happy path, and a failure path that asserts the document ends as `failed` with `error_message` populated.
 
-  Then a GitHub Actions workflow running `ruff`, `mypy` and `pytest` on every push. A passing CI badge in the README carries disproportionate weight relative to the effort.
+  Then a GitHub Actions workflow running `ruff`, `mypy` and `pytest` on every push. A passing CI badge in the README carries disproportionate weight relative to the effort. Walk through the *why* and the learning path in [ci-cd.md](ci-cd.md) rather than copying a finished workflow.
 
-**Resources:** [FastAPI async and concurrency](https://fastapi.tiangolo.com/async/) · [FastAPI lifespan events](https://fastapi.tiangolo.com/advanced/events/) · [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) · [testcontainers-python](https://testcontainers-python.readthedocs.io/) · [pytest-asyncio](https://pytest-asyncio.readthedocs.io/)
+**Resources:** [FastAPI async and concurrency](https://fastapi.tiangolo.com/async/) · [FastAPI lifespan events](https://fastapi.tiangolo.com/advanced/events/) · [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) · [testcontainers-python](https://testcontainers-python.readthedocs.io/) · [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) · [CI/CD guide](ci-cd.md) · [uv in GitHub Actions](https://docs.astral.sh/uv/guides/integration/github/) · [GitHub Actions: Understanding](https://docs.github.com/en/actions/get-started/understand-github-actions)
 
 ---
 
@@ -156,10 +156,10 @@ Re-run the evals after each step and keep an honest log, **including the changes
 - **Cost and token accounting.** Record prompt and completion tokens plus computed USD into a `usage_events` table on every LLM call, and expose `GET /usage`. Being able to state the marginal cost of one question is a strong and uncommon signal.
 - **Observability.** Langfuse (self-hostable, free) tracing every retrieval and generation with latency, tokens and cost; OpenTelemetry with Prometheus and Grafana for HTTP and queue metrics; Sentry for errors; structured JSON logs with a request ID propagated from the API into worker jobs.
 - **Load testing.** k6 or Locust against `ask`, reporting p50/p95/p99 and the RPS at which errors begin — **measured both before and after the Phase 0 async fix**. That contrast is the single most persuasive artifact in the project.
-- **Deployment.** Multi-stage Dockerfile, `/health/live` and `/health/ready` probes, then API + worker + Redis on Fly.io or Railway, Postgres on Neon, Qdrant Cloud, frontend on Vercel. Scale to 3 API replicas and re-run the load test to prove the shared-state fixes actually worked.
+- **Deployment.** Multi-stage Dockerfile, `/health/live` and `/health/ready` probes, then API + worker + Redis on Fly.io or Railway, Postgres on Neon, Qdrant Cloud, frontend on Vercel. Scale to 3 API replicas and re-run the load test to prove the shared-state fixes actually worked. Do this only after CI is a merge gate; the learning path is [ci-cd.md](ci-cd.md) Stage 5.
 - **Auth hardening.** Refresh-token rotation in httpOnly cookies, a revocation list, and email verification — replacing the `localStorage` access token.
 
-**Resources:** [ARQ](https://arq-docs.helpmanual.io/) · [Celery task best practices](https://docs.celeryq.dev/en/stable/userguide/tasks.html) · [Langfuse](https://langfuse.com/docs) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [k6](https://grafana.com/docs/k6/latest/) · [Prometheus FastAPI instrumentator](https://github.com/trallnag/prometheus-fastapi-instrumentator) · Martin Kleppmann, *Designing Data-Intensive Applications* (chapters 1-5)
+**Resources:** [ARQ](https://arq-docs.helpmanual.io/) · [Celery task best practices](https://docs.celeryq.dev/en/stable/userguide/tasks.html) · [Langfuse](https://langfuse.com/docs) · [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) · [k6](https://grafana.com/docs/k6/latest/) · [Prometheus FastAPI instrumentator](https://github.com/trallnag/prometheus-fastapi-instrumentator) · Martin Kleppmann, *Designing Data-Intensive Applications* (chapters 1-5) · [CI/CD guide — Stage 5](ci-cd.md#stage-5--continuous-delivery-only-after-ci-is-boring) · [Vercel Git](https://vercel.com/docs/git) · [Publishing Docker images (Actions)](https://docs.github.com/en/actions/use-cases-and-examples/publishing-packages/publishing-docker-images)
 
 ---
 

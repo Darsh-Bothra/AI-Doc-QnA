@@ -10,7 +10,7 @@ A FastAPI backend for **question answering over uploaded PDFs**. Users register 
 
 Search and ask only work on documents whose status is `completed`.
 
-For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**.
+For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**. For what to build next, see **[docs/roadmap.md](docs/roadmap.md)**. To learn CI/CD on this repo (GitHub Actions, tests, then delivery), see **[docs/ci-cd.md](docs/ci-cd.md)**.
 
 ## Stack
 
@@ -162,8 +162,11 @@ Search and ask return **409** if the document is not `completed`, and search ret
 
 ```
 ai-doc-qa/
+├── .github/workflows/           # GitHub Actions (see docs/ci-cd.md)
 ├── docs/
-│   └── tech-architecture.md     # Stack, architecture, and diagrams
+│   ├── tech-architecture.md     # Stack, architecture, and diagrams
+│   ├── roadmap.md               # What to build next
+│   └── ci-cd.md                 # CI/CD learning guide and resources
 ├── docker-compose.yaml          # Local Postgres 17 + Qdrant
 ├── alembic.ini                  # Alembic config (URL from POSTGRES_URL)
 ├── pyproject.toml               # Package metadata and dependencies

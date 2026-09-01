@@ -2,7 +2,7 @@
 
 This document describes **AI Doc QA**: a FastAPI backend that lets users upload PDFs, index them, and ask questions against their own documents using retrieval-augmented generation (RAG).
 
-For runbooks (install, env vars, smoke tests), see the [README](../README.md). This file is the *why* and *how* of the system.
+For runbooks (install, env vars, smoke tests), see the [README](../README.md). This file is the *why* and *how* of the system. For what to build next, see [roadmap.md](roadmap.md). For CI/CD on this repo, see [ci-cd.md](ci-cd.md).
 
 ---
 
