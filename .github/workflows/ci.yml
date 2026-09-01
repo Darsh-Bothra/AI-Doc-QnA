@@ -1,0 +1,31 @@
+name: Testing pipeline
+on:
+  push:
+    branches: [main]
+  pull_request: 
+    branches: [main]
+jobs:
+  test: 
+    name: Run Tests
+    # needs: lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v8.1.0
+          with:
+            python-version: 3.11
+            enable-cache: true
+      
+      - name: Installing deps
+          run: uv sync --locked --all-extras --dev
+
+      - name: Lint with Ruff 
+          run: uv run ruff check src
+      
+      - name: Check code formatting
+          run: uv run ruff format --check src
+
+      - name: Run Test
+          run: uv run pytest
