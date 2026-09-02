@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { renderToStaticMarkup } from "react-dom/server"
-import { StatusBadge } from "./status-badge"
+import { StatusBadge } from "@/components/status-badge"
 
 describe("StatusBadge", () => {
   test("renders a Processing label", () => {

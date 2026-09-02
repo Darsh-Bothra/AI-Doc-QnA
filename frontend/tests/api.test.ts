@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test"
-import { ApiError, api } from "./api"
+import { ApiError, api } from "@/lib/api"
 
 const originalFetch = globalThis.fetch
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"
@@ -102,9 +102,7 @@ describe("api", () => {
   })
 
   test("throws ApiError using a string detail", async () => {
-    mockFetch(() =>
-      jsonResponse({ detail: "Invalid credentials" }, 401)
-    )
+    mockFetch(() => jsonResponse({ detail: "Invalid credentials" }, 401))
 
     try {
       await api.login("user@example.com", "wrong")

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "bun test"
+    "test": "bun test tests"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

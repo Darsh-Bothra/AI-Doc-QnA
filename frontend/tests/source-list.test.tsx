@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { renderToStaticMarkup } from "react-dom/server"
-import { SourceList } from "./source-list"
+import { SourceList } from "@/components/source-list"
 
 describe("SourceList", () => {
   test("shows an empty state when there are no sources", () => {
