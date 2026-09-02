@@ -1,4 +1,4 @@
-name: Testing pipeline
+name: Backend CI
 on:
   push:
     branches: [main]
