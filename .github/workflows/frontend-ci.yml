@@ -1,0 +1,42 @@
+name: Frontend CI
+on:
+  push:
+    branches:[main]
+    paths:
+      - "frontend/**"
+  pull_request:
+    branches:[main]
+    paths:
+    - "frontend/**"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2 
+        with:
+          bun-version: latest
+      
+      - name: Cache bun deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{runner.os}}-bun-${{hashFiles('**/bun.lock')}}
+          restore-keys: |
+            ${{runner.os}}-bun-
+      
+      - name: Install Deps
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Lint and Typecheck
+        run: bun run --filter frontend lint 
+      
+      - name: Run Test 
+        run: bun test --filter frontend
+      
+      - name: Build Frontend
+        run: bun run --filter frontend build 
