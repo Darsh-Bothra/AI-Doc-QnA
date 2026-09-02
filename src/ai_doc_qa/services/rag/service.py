@@ -8,10 +8,10 @@ class RAGService:
         self.retrieval = RetrievalService()
         self.llm = LLMService()
 
-    def run(
+    async def run(
         self, question: str, user_id: int, document_id: int, *, limit: int = 5
     ) -> tuple[str, list[dict]]:
-        hits = self.retrieval.retrieve(
+        hits = await self.retrieval.retrieve(
             question=question, user_id=user_id, document_id=document_id, limit=limit
         )
         # texts = [h["text"] for h in hits if h.get("text")]
@@ -28,11 +28,5 @@ class RAGService:
             )
 
         context = "\n\n".join(context_parts)
-        response = self.llm.generate(context=user_prompt(context, question=question))
+        response = await self.llm.generate(context=user_prompt(context, question=question))
         return response, hits
-
-
-if __name__ == "__main__":
-    rag = RAGService()
-    response = rag.run(question="What an FastAPI", user_id=1, document_id=2)
-    print(response)

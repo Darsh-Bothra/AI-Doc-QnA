@@ -53,16 +53,15 @@ class IngestionService:
             embedding_service = EmbeddingService()
 
             texts = [chunk.text for chunk in saved_chunks]
-            vectors = await asyncio.to_thread(embedding_service.get_embeddings, texts)
+            vectors = await embedding_service.get_embeddings(texts)
 
             # 4. Store vectors in Qdrant
             qdrant = QdrantService()
 
-            await asyncio.to_thread(
-                qdrant.upsert_chunks,
+            await qdrant.upsert_chunks(
                 chunk_ids=[chunk.id for chunk in saved_chunks],
                 vectors=vectors,
-                payloads=[
+                payloads=[  
                     {
                         "document_id": document_id,
                         "chunk_index": chunk.chunk_index,

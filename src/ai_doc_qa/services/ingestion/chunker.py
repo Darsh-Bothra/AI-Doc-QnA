@@ -40,7 +40,3 @@ class StructureAwareChunker:
 
         return [section.strip() for section in section if section.strip()]
 
-
-if __name__ == "__main__":
-    chunker = BasicChunker(document="Hello, world!", chunk_size=10, overlap=2)
-    print(chunker.basic_chunker())

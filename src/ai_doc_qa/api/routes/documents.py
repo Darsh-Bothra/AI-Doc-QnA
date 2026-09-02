@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 from uuid import uuid4
 
@@ -166,7 +165,7 @@ async def delete_doc(
         )
 
     try:
-        QdrantService().delete_document(user_id=user.id, document_id=document_id)
+        await QdrantService().delete_document(user_id=user.id, document_id=document_id)
     except VectorStoreError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -208,9 +207,8 @@ async def search_docs(
 
     retrieval = RetrievalService()  # better: FastAPI Depends + singleton
     try:
-        hits = await asyncio.to_thread(
-            retrieval.retrieve,
-            req.question,
+        hits = await retrieval.retrieve(
+            question=req.question,
             user_id=user.id,
             document_id=req.document_id,
             limit=req.limit,
@@ -246,7 +244,7 @@ async def ask_doc(
         )
     rag = RAGService()
     try:
-        response, hits = rag.run(
+        response, hits = await rag.run(
             question=req.query, user_id=user.id, document_id=document_id
         )
     except (RetrievalError, LLMGenerationError):

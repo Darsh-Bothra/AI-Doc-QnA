@@ -8,7 +8,7 @@ class RetrievalService:
         self.embeddings = EmbeddingService()
         self.qdrant = QdrantService()
 
-    def retrieve(
+    async def retrieve(
         self,
         question: str,
         *,
@@ -17,16 +17,12 @@ class RetrievalService:
         limit: int = 5,
     ) -> list[dict]:
         try:
-            vector = self.embeddings.get_embeddings([question])[0]
+            vectors = await self.embeddings.get_embeddings([question])
+            vector = vectors[0]
 
-            return self.qdrant.search(
+            return await self.qdrant.search(
                 vector, user_id=user_id, document_id=document_id, limit=limit
             )
         except (EmbeddingError, VectorStoreError) as exc:
             raise RetrievalError("Failed to retrieve relevant documents.") from exc
 
-
-if __name__ == "__main__":
-    retrieval = RetrievalService()
-    hits = retrieval.retrieve(question="What an FastAPI", user_id=1, document_id=1)
-    print(hits)
