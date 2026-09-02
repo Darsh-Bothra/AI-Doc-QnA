@@ -14,17 +14,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.api.dependencies import get_current_user
-from ai_doc_qa.db.db import get_db
-from ai_doc_qa.db.models.document import Document, DocumentStatus
-from ai_doc_qa.db.models.user import User
+from ai_doc_qa.api import get_current_user
+from ai_doc_qa.db import get_db
+from ai_doc_qa.db.models import Document, DocumentStatus, User
 from ai_doc_qa.exceptions import (
     DatabaseError,
     LLMGenerationError,
     RetrievalError,
     VectorStoreError,
 )
-from ai_doc_qa.schemas.document import (
+from ai_doc_qa.schemas import (
     AskRequest,
     AskResponse,
     DocumentListResponse,
@@ -32,11 +31,11 @@ from ai_doc_qa.schemas.document import (
     SearchRequest,
     SearchResponse,
 )
-from ai_doc_qa.services.rag.service import RAGService
-from ai_doc_qa.services.retrieval.service import RetrievalService
-from ai_doc_qa.services.vector_store.qdrant import QdrantService
+from ai_doc_qa.services.rag import RAGService
+from ai_doc_qa.services.retrieval import RetrievalService
+from ai_doc_qa.services.vector_store import QdrantService
 from ai_doc_qa.settings import settings
-from ai_doc_qa.utils.task import run_ingestion_service
+from ai_doc_qa.utils import run_ingestion_service
 
 settings.upload_dir.mkdir(exist_ok=True)
 

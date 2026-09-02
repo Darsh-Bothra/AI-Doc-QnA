@@ -4,7 +4,7 @@ from sqlalchemy import DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Text
 
-from ai_doc_qa.db.models.base import Base
+from .base import Base
 
 
 class DocumentChunk(Base):

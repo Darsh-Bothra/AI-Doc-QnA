@@ -1,6 +1,6 @@
-from ai_doc_qa.services.llm.service import LLMService
-from ai_doc_qa.services.rag.prompt import user_prompt
-from ai_doc_qa.services.retrieval.service import RetrievalService
+from ai_doc_qa.services.llm import LLMService
+from ai_doc_qa.services.rag import user_prompt
+from ai_doc_qa.services.retrieval import RetrievalService
 
 
 class RAGService:

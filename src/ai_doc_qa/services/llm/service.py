@@ -1,7 +1,7 @@
 from openai import OpenAI, OpenAIError
 
 from ai_doc_qa.exceptions import LLMGenerationError
-from ai_doc_qa.services.rag.prompt import RAG_SYSTEM_PROMPT
+from ai_doc_qa.services.rag import RAG_SYSTEM_PROMPT
 from ai_doc_qa.settings import settings
 
 

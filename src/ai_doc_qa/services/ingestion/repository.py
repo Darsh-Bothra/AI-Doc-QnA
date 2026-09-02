@@ -1,9 +1,10 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.db.models.document_chunk import DocumentChunk
+from ai_doc_qa.db.models import DocumentChunk
 from ai_doc_qa.exceptions import DatabaseError
-from ai_doc_qa.services.ingestion.models import ChunkPayload
+
+from .models import ChunkPayload
 
 
 class DocumentChunkRepository:

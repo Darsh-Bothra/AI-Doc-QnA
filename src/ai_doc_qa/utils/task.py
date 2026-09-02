@@ -1,7 +1,7 @@
 from fastapi import BackgroundTasks
 
-from ai_doc_qa.db.db import AsyncSessionLocal
-from ai_doc_qa.services.ingestion.service import IngestionService
+from ai_doc_qa.db import AsyncSessionLocal
+from ai_doc_qa.services.ingestion import IngestionService
 
 
 async def run_ingestion(

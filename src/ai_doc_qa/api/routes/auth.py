@@ -2,11 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 
-from ai_doc_qa.db.db import get_db
-from ai_doc_qa.db.models.user import User
-from ai_doc_qa.schemas.user import LoginResponse, UserCreate, UserLogin, UserResponse
-from ai_doc_qa.utils import security
-from ai_doc_qa.utils.jwt import create_access_token
+from ai_doc_qa.db import get_db
+from ai_doc_qa.db.models import User
+from ai_doc_qa.schemas import LoginResponse, UserCreate, UserLogin, UserResponse
+from ai_doc_qa.utils import create_access_token, security
 
 router = APIRouter(prefix="/auth", tags=["Authentication route"])
 

@@ -1,6 +1,6 @@
 import pytest
 
-from ai_doc_qa.services.ingestion.chunker import BasicChunker, StructureAwareChunker
+from ai_doc_qa.services.ingestion import BasicChunker, StructureAwareChunker
 
 
 class TestBasicChunker:

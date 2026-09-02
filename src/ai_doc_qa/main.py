@@ -3,9 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.api.routes.auth import router as auth_router
-from ai_doc_qa.api.routes.documents import router as docs_router
-from ai_doc_qa.db.db import get_db
+from ai_doc_qa.api.routes import auth_router, docs_router
+from ai_doc_qa.db import get_db
 from ai_doc_qa.settings import settings
 
 app = FastAPI()

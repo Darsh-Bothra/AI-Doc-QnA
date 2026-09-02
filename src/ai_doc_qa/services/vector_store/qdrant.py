@@ -117,7 +117,7 @@ class QdrantService:
 
 
 if __name__ == "__main__":
-    from ai_doc_qa.services.embedding.service import EmbeddingService
+    from ai_doc_qa.services.embedding import EmbeddingService
 
     texts = [
         "Python is a programming language",

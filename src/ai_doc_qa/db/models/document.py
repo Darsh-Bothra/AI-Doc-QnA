@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ai_doc_qa.db.models.base import Base
+from .base import Base
 
 
 class DocumentStatus(str, enum.Enum):

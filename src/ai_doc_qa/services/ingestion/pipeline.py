@@ -1,6 +1,6 @@
-from ai_doc_qa.services.ingestion.chunker import StructureAwareChunker
-from ai_doc_qa.services.ingestion.extractor import PDFTextExtractor
-from ai_doc_qa.services.ingestion.models import ChunkPayload
+from .chunker import StructureAwareChunker
+from .extractor import PDFTextExtractor
+from .models import ChunkPayload
 
 
 class IngestionPipeline:

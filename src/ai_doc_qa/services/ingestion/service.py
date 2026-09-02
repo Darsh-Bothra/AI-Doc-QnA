@@ -2,12 +2,11 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.db.models.document import Document, DocumentStatus
+from ai_doc_qa.db.models import Document, DocumentStatus
 from ai_doc_qa.exceptions import AppError
-from ai_doc_qa.services.embedding.service import EmbeddingService
-from ai_doc_qa.services.ingestion.pipeline import IngestionPipeline
-from ai_doc_qa.services.ingestion.repository import DocumentChunkRepository
-from ai_doc_qa.services.vector_store.qdrant import QdrantService
+from ai_doc_qa.services.embedding import EmbeddingService
+from ai_doc_qa.services.ingestion import DocumentChunkRepository, IngestionPipeline
+from ai_doc_qa.services.vector_store import QdrantService
 
 
 class IngestionService:

@@ -1,6 +1,6 @@
 from ai_doc_qa.exceptions import EmbeddingError, RetrievalError, VectorStoreError
-from ai_doc_qa.services.embedding.service import EmbeddingService
-from ai_doc_qa.services.vector_store.qdrant import QdrantService
+from ai_doc_qa.services.embedding import EmbeddingService
+from ai_doc_qa.services.vector_store import QdrantService
 
 
 class RetrievalService:

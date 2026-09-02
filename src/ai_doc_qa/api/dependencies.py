@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from ai_doc_qa.db.db import get_db
-from ai_doc_qa.db.models.user import User
-from ai_doc_qa.utils.jwt import decode_access_token
+from ai_doc_qa.db import get_db
+from ai_doc_qa.db.models import User
+from ai_doc_qa.utils import decode_access_token
 
 protected = APIRouter(prefix="/protected", tags=["Protected"])
 
