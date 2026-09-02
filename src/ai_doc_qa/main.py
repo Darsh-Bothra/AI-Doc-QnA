@@ -1,19 +1,23 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from contextlib import asynccontextmanager
 
 from ai_doc_qa.api.routes import auth_router, docs_router
-from ai_doc_qa.db.db import close_db, init_db, get_db
+from ai_doc_qa.client import close_clients, init_clients
+from ai_doc_qa.db.db import close_db, get_db, init_db
 from ai_doc_qa.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    init_clients()
     yield
     await close_db()
+    await close_clients()
 
 
 app = FastAPI(lifespan=lifespan)

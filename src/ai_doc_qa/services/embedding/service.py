@@ -5,11 +5,11 @@ from ai_doc_qa.settings import settings
 
 
 class EmbeddingService:
-    def __init__(self):
+    def __init__(self, client: AsyncOpenAI):
+        self.client = client
         self.model = settings.embedding_model
         self.dimensions = settings.embedding_dimensions
         self.batch_size = settings.embedding_batch_size
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         embeddings = []

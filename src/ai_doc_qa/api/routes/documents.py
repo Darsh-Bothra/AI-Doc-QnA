@@ -13,7 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_doc_qa.api import get_current_user
+from ai_doc_qa.api import (
+    get_current_user,
+    get_qdrant_service,
+    get_rag_service,
+    get_retrieval_service,
+)
 from ai_doc_qa.db import get_db
 from ai_doc_qa.db.models import Document, DocumentStatus, User
 from ai_doc_qa.exceptions import (
@@ -152,6 +157,7 @@ async def delete_doc(
     document_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    qdrant: QdrantService = Depends(get_qdrant_service),
 ):
     query = select(Document).where(
         Document.id == document_id, Document.user_id == user.id
@@ -165,7 +171,7 @@ async def delete_doc(
         )
 
     try:
-        await QdrantService().delete_document(user_id=user.id, document_id=document_id)
+        await qdrant.delete_document(user_id=user.id, document_id=document_id)
     except VectorStoreError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -186,6 +192,7 @@ async def search_docs(
     req: SearchRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    retrieval: RetrievalService = Depends(get_retrieval_service),
 ):
     if req.document_id is not None:
         query = select(Document).where(
@@ -205,7 +212,6 @@ async def search_docs(
                 detail=f"Document is not ready for search (status={document.status.value}).",
             )
 
-    retrieval = RetrievalService()  # better: FastAPI Depends + singleton
     try:
         hits = await retrieval.retrieve(
             question=req.question,
@@ -227,6 +233,7 @@ async def ask_doc(
     document_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    rag: RAGService = Depends(get_rag_service),
 ):
     query = select(Document).where(
         Document.id == document_id, Document.user_id == user.id
@@ -242,7 +249,6 @@ async def ask_doc(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Document is not ready for questions (status={document.status.value}).",
         )
-    rag = RAGService()
     try:
         response, hits = await rag.run(
             question=req.query, user_id=user.id, document_id=document_id

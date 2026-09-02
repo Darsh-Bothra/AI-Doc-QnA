@@ -10,12 +10,11 @@ from ai_doc_qa.settings import settings
 
 
 class QdrantService:
-    def __init__(self):
-        self.url = settings.qdrant_url
+    def __init__(self, client: AsyncQdrantClient):
+        self.client = client
         self.collection = settings.qdrant_collection
         self.dimensions = settings.embedding_dimensions
         self.score_threshold = settings.qdrant_score_threshold
-        self.client = AsyncQdrantClient(url=self.url)
 
     async def ensure_collection(self) -> None:
         try:

@@ -1,6 +1,6 @@
 from fastapi import BackgroundTasks
 
-from ai_doc_qa.db import AsyncSessionLocal
+from ai_doc_qa.db import db as db_module
 from ai_doc_qa.services.ingestion import IngestionService
 
 
@@ -9,8 +9,10 @@ async def run_ingestion(
     file_path: str,
     user_id: int,
 ) -> None:
+    if db_module.AsyncSessionLocal is None:
+        raise RuntimeError("Database session factory has not been initialized.")
 
-    async with AsyncSessionLocal() as db:
+    async with db_module.AsyncSessionLocal() as db:
         ingestion_service = IngestionService(db)
 
         await ingestion_service.process_document(
@@ -26,7 +28,6 @@ def run_ingestion_service(
     file_path: str,
     user_id: int,
 ) -> None:
-
     background_tasks.add_task(
         run_ingestion,
         document_id=document_id,

@@ -3,6 +3,7 @@ DB_URL -> SQLAlchemy engine -> Session Factory -> Db session
 """
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from ai_doc_qa.settings import settings
 
 # Declare placeholders for your singletons
@@ -24,7 +25,6 @@ def init_db():
 
 async def close_db():
     """Disposes of the connection pool gracefully on shutdown."""
-    global engine
     if engine:
         await engine.dispose()
 

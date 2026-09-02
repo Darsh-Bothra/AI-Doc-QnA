@@ -4,9 +4,13 @@ from ai_doc_qa.services.vector_store import QdrantService
 
 
 class RetrievalService:
-    def __init__(self):
-        self.embeddings = EmbeddingService()
-        self.qdrant = QdrantService()
+    def __init__(
+        self,
+        embeddings: EmbeddingService,
+        qdrant: QdrantService,
+    ):
+        self.embeddings = embeddings
+        self.qdrant = qdrant
 
     async def retrieve(
         self,
@@ -25,4 +29,3 @@ class RetrievalService:
             )
         except (EmbeddingError, VectorStoreError) as exc:
             raise RetrievalError("Failed to retrieve relevant documents.") from exc
-
