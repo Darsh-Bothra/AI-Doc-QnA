@@ -4,7 +4,7 @@ This is a learning guide, not a copy-paste pipeline. The goal is to understand t
 
 The repo is on GitHub: [Darsh-Bothra/AI-Doc-QnA](https://github.com/Darsh-Bothra/AI-Doc-QnA). GitHub Actions is the right first tool because it is already attached to the git host.
 
-For product sequencing (tests, evals, deploy), see [roadmap.md](roadmap.md) Phase 0. For how the system is built, see [tech-architecture.md](tech-architecture.md). For local install and smoke tests, see the [README](../README.md).
+For product sequencing (tests, evals, deploy), see [roadmap.md](roadmap.md) (Phase 0 done; Phase 1 next). For how the system is built, see [tech-architecture.md](tech-architecture.md). For local install and smoke tests, see the [README](../README.md).
 
 Workflows in this repo live under [`.github/workflows/`](../.github/workflows/). Read them as *your* implementation of the stages below, not as canonical YAML to clone into the next project.
 
@@ -62,18 +62,15 @@ YAML primer: [Learn YAML in Y Minutes](https://learnxinyminutes.com/docs/yaml/).
 What exists:
 
 - FastAPI backend, Python 3.11, **uv** + `uv.lock`
-- Next.js frontend with `lint` and `build` (check [`frontend/package.json`](../frontend/package.json) for a `test` script)
+- Next.js frontend with `lint`, `build`, and frontend unit tests
 - Postgres 17 + Qdrant via [`docker-compose.yaml`](../docker-compose.yaml)
 - Alembic migrations
-- OpenAI for embeddings and ask
+- OpenAI for embeddings and ask (`AsyncOpenAI` / `AsyncQdrantClient`; faked in pytest)
+- Backend tests in [`tests/`](../tests/) (chunker, auth, cross-tenant 404, ingest success/failure) using testcontainers
+- GitHub Actions: [backend-ci.yml](../.github/workflows/backend-ci.yml) (ruff + pytest) and [frontend-ci.yml](../.github/workflows/frontend-ci.yml) (lint + build). **mypy is deferred.**
 - GitHub remote on `main`
 
-What CI cannot do until the repo supports it:
-
-- A workflow that runs `uv run pytest` will fail until pytest is a **declared** project dependency and there are tests. That failure is **correct**.
-- Real OpenAI calls in CI are slow, flaky, and cost money. Integration tests that hit the LLM should use a **fake client**. Keep a paid API key out of the workflow until you have a reason.
-
-The first question is: can a stranger’s machine install and verify this project? The pipeline file is not the first file you write. The first file is a test that fails for a reason you understand, then passes on your machine, then you ask a second machine to run the same command.
+CI still should not call the real OpenAI API. Keep a paid key out of the workflow until evals or load tests need it.
 
 ---
 
@@ -111,7 +108,7 @@ CI is “run the same commands a teammate would.” If you cannot name those com
 2. **Tests** — [pytest](https://docs.pytest.org/), [pytest-asyncio](https://pytest-asyncio.readthedocs.io/), FastAPI [testing with httpx](https://fastapi.tiangolo.com/tutorial/testing/)
 3. **Install in CI** — [Using uv in GitHub Actions](https://docs.astral.sh/uv/guides/integration/github/). Use `uv sync --frozen` / `--locked` so CI **fails** if `pyproject.toml` and `uv.lock` disagree.
 
-Roadmap minimum test set (implement **one** first, not full RAG) — see [roadmap.md §4](roadmap.md#4-phase-0--correctness-and-foundations-1-week):
+Roadmap Phase 0 test set — implemented under [`tests/`](../tests/); see [roadmap.md §4](roadmap.md#4-phase-0--correctness-and-foundations-done):
 
 - register → login → authenticated request
 - cross-tenant isolation (404, not 403 or 200)
@@ -277,7 +274,7 @@ Later ([roadmap Phase 1](roadmap.md#5-phase-1--make-retrieval-good-and-prove-it-
 
 - [README](../README.md) — install, env vars, smoke tests
 - [Technical architecture](tech-architecture.md)
-- [Roadmap](roadmap.md) — Phase 0 tests/CI, Phase 1 evals in CI, Phase 2 deploy
+- [Roadmap](roadmap.md) — Phase 0 done (tests/CI); Phase 1 evals + p95 baseline in CI; Phase 2 deploy
 - [`.github/workflows/`](../.github/workflows/) — workflows you write while learning
 
 Skip random “complete YAML in 12 steps” posts until the official pages are familiar. Copy-paste pipelines teach a file, not the system.
