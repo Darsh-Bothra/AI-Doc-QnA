@@ -1,5 +1,8 @@
 # AI Doc QA
 
+[![Backend CI](https://github.com/Darsh-Bothra/AI-Doc-QnA/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Darsh-Bothra/AI-Doc-QnA/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/Darsh-Bothra/AI-Doc-QnA/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/Darsh-Bothra/AI-Doc-QnA/actions/workflows/frontend-ci.yml)
+
 A FastAPI backend for **question answering over uploaded PDFs**. Users register and log in, upload documents, and the service:
 
 1. Extracts text from the PDF
