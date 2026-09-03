@@ -13,7 +13,7 @@ A FastAPI backend for **question answering over uploaded PDFs**. Users register 
 
 Search and ask only work on documents whose status is `completed`.
 
-For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**. For what to build next, see **[docs/roadmap.md](docs/roadmap.md)**. To learn CI/CD on this repo (GitHub Actions, tests, then delivery), see **[docs/ci-cd.md](docs/ci-cd.md)**.
+For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**. To learn CI/CD on this repo (GitHub Actions, tests, then delivery), see **[docs/ci-cd.md](docs/ci-cd.md)**.
 
 ## Stack
 
@@ -26,6 +26,7 @@ For a full walkthrough of the stack, why each piece exists, and how ingestion/RA
 - JWT access tokens (Bearer) and Argon2 password hashing
 - **PyMuPDF / pymupdf4llm** for PDF-to-markdown extraction
 - **uv** for dependency management
+- **Next.js** frontend (`frontend/`)
 
 ## Prerequisites
 
@@ -70,8 +71,10 @@ Create a `.env` file in the project root (this file is gitignored):
 POSTGRES_URL=postgresql+psycopg://ai_doc_qa:pg**ai**doc@localhost:5433/doc_db
 JWT_SECRET=change-me
 JWT_ALGO=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
 
@@ -107,6 +110,17 @@ Qdrant’s own UI is at [http://localhost:6333/dashboard](http://localhost:6333/
 2. `POST /auth/login` — copy `access_token`
 3. `POST /documents/` as `multipart/form-data` with a PDF and header `Authorization: Bearer <access_token>`
 4. When the document `status` is `completed`, `POST /documents/{id}/ask` with `{ "query": "..." }`
+
+## Tests
+
+Backend tests live in `tests/`. Unit tests (chunker) need no Docker. Integration tests start Postgres and Qdrant with [testcontainers](https://testcontainers.com/) and fake the OpenAI client.
+
+```bash
+uv sync --dev
+uv run pytest
+```
+
+CI on GitHub Actions runs **ruff** and **pytest** for the backend, and **lint + build** for the frontend. mypy is deferred.
 
 ## How it works
 
@@ -165,28 +179,29 @@ Search and ask return **409** if the document is not `completed`, and search ret
 
 ```
 ai-doc-qa/
-├── .github/workflows/           # GitHub Actions (see docs/ci-cd.md)
+├── .github/workflows/           # Backend + frontend CI
 ├── docs/
 │   ├── tech-architecture.md     # Stack, architecture, and diagrams
-│   ├── roadmap.md               # What to build next
+│   ├── roadmap.md               # What to build next (Phase 0 done)
 │   └── ci-cd.md                 # CI/CD learning guide and resources
+├── tests/                       # pytest: chunker, auth, tenancy, ingest
 ├── docker-compose.yaml          # Local Postgres 17 + Qdrant
 ├── alembic.ini                  # Alembic config (URL from POSTGRES_URL)
 ├── pyproject.toml               # Package metadata and dependencies
 ├── uv.lock                      # Locked dependency versions
 ├── .python-version              # Python 3.11
+├── .env.example                 # Environment contract
 ├── uploaded_documents/          # PDF uploads (gitignored except .gitkeep)
 ├── migrations/                  # Alembic migrations
 │   ├── env.py
 │   ├── script.py.mako
 │   └── versions/
-│       ├── 5638fdb2bfc8_create_users_table.py
-│       ├── 4f7559a2c233_create_documents_table.py
-│       └── 19b915a91cee_create_document_chunks.py
 └── src/ai_doc_qa/
-    ├── main.py                  # FastAPI app, health routes
+    ├── main.py                  # FastAPI app, lifespan, health routes
+    ├── settings.py              # pydantic-settings + get_settings()
+    ├── client.py                # Shared AsyncOpenAI / AsyncQdrantClient
     ├── api/
-    │   ├── dependencies.py      # JWT → current user
+    │   ├── dependencies.py      # JWT → current user; service Depends
     │   └── routes/
     │       ├── auth.py          # Register / login
     │       └── documents.py     # CRUD, search, ask
@@ -207,8 +222,8 @@ ai-doc-qa/
     │   │   ├── pipeline.py      # Extract → chunk
     │   │   ├── repository.py    # Persist chunks
     │   │   └── service.py       # Full ingest + embed + Qdrant
-    │   ├── embedding/           # OpenAI embeddings
-    │   ├── vector_store/        # Qdrant client
+    │   ├── embedding/           # Async OpenAI embeddings
+    │   ├── vector_store/        # Async Qdrant client
     │   ├── retrieval/           # Embed query + vector search
     │   ├── llm/                 # gpt-4o-mini generation
     │   └── rag/                 # Retrieve + prompt + LLM

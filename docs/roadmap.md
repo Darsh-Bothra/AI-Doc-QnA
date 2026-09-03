@@ -17,26 +17,26 @@ The finish line looks like three claims that hold up for thirty minutes of follo
 Two consequences follow from this framing:
 
 1. **The eval harness (Phase 1) and the cost/latency instrumentation (Phase 2) are the highest-leverage work in this document.** A RAG demo is common; a RAG demo with a golden set, regression tests on retrieval quality, and a known dollar cost per query is rare.
-2. **Correctness fixes come before features.** A reviewer who opens [documents.py](../src/ai_doc_qa/api/routes/documents.py) and finds a blocking call in an async route will discount every scalability claim that follows it. Phase 0 exists to remove that.
+2. **Correctness fixes come before features.** Phase 0 removed the blocking `ask` path, unauthenticated upload, and “no tests / no CI” gap. Phase 1 is about proving retrieval quality with numbers.
+
+**Where we are:** Phase 0 is done (mypy deferred). Next work is Phase 1 — eval harness first, then chunker/retrieval changes, plus a p95 `ask` baseline.
 
 ---
 
 ## 2. Known gaps in the current implementation
 
-Recorded here so they are not rediscovered later. Each maps to a task below.
+Closed in Phase 0 (kept here so the history is visible): blocking sync `ask`, `/test-upload`, scattered `os.getenv`, per-request HTTP clients, empty `.env.example`, and the missing test/CI gate.
 
-| Area | Issue | Impact |
-|------|-------|--------|
-| Concurrency | `ask_doc` calls `RAGService.run()` synchronously inside an `async def`, and the RAG/LLM/embedding/retrieval services use the **sync** `OpenAI` client | The event loop is blocked for the whole embed + completion round trip. Effective concurrency on `ask` is 1. `search` avoids this with `asyncio.to_thread`; `ask` does not |
-| Security | `/test-upload` in [main.py](../src/ai_doc_qa/main.py) is unauthenticated and builds its path as `UPLOAD_DIR / file.filename` from a client-controlled filename | Arbitrary-path write (traversal) |
-| Security | JWT is stored in `localStorage` ([frontend/lib/auth.tsx](../frontend/lib/auth.tsx)), with no refresh or revocation path | Any XSS exfiltrates a valid credential; no way to invalidate it before expiry |
-| Retrieval quality | `StructureAwareChunker.split_section` splits only on markdown headings and ignores its own `chunk_size` / `overlap` arguments | A long single-heading section becomes one chunk, which can exceed the 8191-token embedding limit and badly degrades retrieval precision |
-| Performance | `QdrantService()`, `RetrievalService()` and `RAGService()` are constructed inside request handlers | Fresh HTTP/TLS clients per request; no shared connection pool |
-| Maintainability | `os.getenv` + `load_dotenv()` are repeated across five service modules; root `.env.example` is empty | No single source of truth for configuration; deployment is guesswork |
-| Durability | Ingest runs in FastAPI `BackgroundTasks` in-process, with no retries and no watchdog | A crash or restart mid-ingest strands documents in `processing` forever |
-| Scale-out | PDFs are written to local disk under `uploaded_documents/` | Two API replicas cannot see each other's files; caps the service at one instance |
-| Engineering hygiene | No tests, no CI, no linting gate | Regressions are invisible; nothing enforces the tenancy guarantees |
-| Operability | No tracing, no metrics, no token/cost accounting, no rate limiting or quotas | Cannot answer "how slow is it", "what does it cost", or "who is abusing it" |
+Still open. Each maps to a later phase.
+
+| Area | Issue | Impact | Phase |
+|------|-------|--------|-------|
+| Retrieval quality | `StructureAwareChunker.split_section` splits only on markdown headings and ignores its own `chunk_size` / `overlap` arguments | A long single-heading section becomes one chunk, which can exceed the embedding token limit and hurts precision | 1 |
+| Measurement | No golden set, no retrieval metrics, no recorded p95 for `ask` | Cannot prove a chunker or search change helped | 1 |
+| Security | JWT is stored in `localStorage` ([frontend/lib/auth.tsx](../frontend/lib/auth.tsx)), with no refresh or revocation path | Any XSS exfiltrates a valid credential; no way to invalidate it before expiry | 2 |
+| Durability | Ingest runs in FastAPI `BackgroundTasks` in-process, with no retries and no watchdog | A crash or restart mid-ingest strands documents in `processing` forever | 2 |
+| Scale-out | PDFs are written to local disk under `uploaded_documents/` | Two API replicas cannot see each other's files; caps the service at one instance | 2 |
+| Operability | No tracing, no metrics, no token/cost accounting, no rate limiting or quotas | Cannot answer "how slow is it", "what does it cost", or "who is abusing it" | 2 |
 
 ---
 
@@ -92,21 +92,17 @@ The differences from today's architecture are: a worker tier behind a durable qu
 
 ---
 
-## 4. Phase 0 — Correctness and foundations (~1 week)
+## 4. Phase 0 — Correctness and foundations (done)
 
-Small, unglamorous, and blocking. Everything here is a prerequisite for the claims made in later phases.
+Small, unglamorous, and blocking. This phase is **complete**. mypy is deferred on purpose; ruff + pytest are the CI gate.
 
-- **Fix the blocking ask.** Convert [services/llm/service.py](../src/ai_doc_qa/services/llm/service.py), [services/embedding/service.py](../src/ai_doc_qa/services/embedding/service.py), [services/retrieval/service.py](../src/ai_doc_qa/services/retrieval/service.py) and [services/rag/service.py](../src/ai_doc_qa/services/rag/service.py) to `AsyncOpenAI` and `AsyncQdrantClient`, make `RAGService.run` a coroutine, and `await` it in `ask_doc`. **Benchmark p95 before and after** — this is the headline latency number for Phase 2's write-up, so capture the "before" while it still exists.
-- **Delete `/test-upload`** from [main.py](../src/ai_doc_qa/main.py). Also remove the `if __name__ == "__main__"` scratch blocks left in the service modules; one of them calls a `emb.get_embedding` method that no longer exists, which is a signal that dead code is not being exercised.
-- **One config object.** Add `core/config.py` built on `pydantic-settings` with a cached `get_settings()`, and delete the scattered `load_dotenv()` / `os.getenv` calls. Fill in the empty root `.env.example` from the environment contract in [tech-architecture.md](tech-architecture.md#11-environment-contract).
-- **Client singletons.** Construct the Qdrant and OpenAI clients once in a FastAPI `lifespan`, store them on `app.state`, and inject them with `Depends` instead of instantiating services inside handlers.
-- **Tests and CI.** `pytest` + `pytest-asyncio` + `httpx.ASGITransport`, with Postgres and Qdrant supplied by `testcontainers-python` and the OpenAI client faked. Minimum meaningful set:
-  - the register → login → authenticated-request flow;
-  - **cross-tenant isolation** — user A must receive 404, not 403 or 200, for user B's document id, on get, delete, search and ask;
-  - chunker unit tests (including the oversized-section case that currently fails);
-  - ingest happy path, and a failure path that asserts the document ends as `failed` with `error_message` populated.
+Shipped:
 
-  Then a GitHub Actions workflow running `ruff`, `mypy` and `pytest` on every push. A passing CI badge in the README carries disproportionate weight relative to the effort. Walk through the *why* and the learning path in [ci-cd.md](ci-cd.md) rather than copying a finished workflow.
+- **Async ask.** [services/llm/service.py](../src/ai_doc_qa/services/llm/service.py), [services/embedding/service.py](../src/ai_doc_qa/services/embedding/service.py), [services/retrieval/service.py](../src/ai_doc_qa/services/retrieval/service.py) and [services/rag/service.py](../src/ai_doc_qa/services/rag/service.py) use `AsyncOpenAI` and `AsyncQdrantClient`. `RAGService.run` is a coroutine and `ask_doc` awaits it. Recording p95 for that path moved to Phase 1 — the sync-client “before” is gone, so today’s number is the baseline.
+- **Deleted `/test-upload`** and the `if __name__ == "__main__"` scratch blocks.
+- **One config object.** [settings.py](../src/ai_doc_qa/settings.py) (`pydantic-settings` + cached `get_settings()`). Root [`.env.example`](../.env.example) lists the environment contract in [tech-architecture.md](tech-architecture.md#11-environment-contract).
+- **Client singletons.** OpenAI and Qdrant are constructed in FastAPI `lifespan` ([client.py](../src/ai_doc_qa/client.py)) and injected with `Depends`.
+- **Tests and CI.** `pytest` + `pytest-asyncio` + `httpx.ASGITransport`, Postgres and Qdrant via `testcontainers-python`, OpenAI faked. Coverage: register → login → authenticated request; **cross-tenant isolation** (404, not 403 or 200) on get, delete, search, and ask; chunker units including the oversized-section case; ingest happy path (`completed`) and failure path (`failed` + `error_message`). GitHub Actions runs **ruff** and **pytest** on every push to `main`; badges are in the [README](../README.md). Walk through the *why* in [ci-cd.md](ci-cd.md).
 
 **Resources:** [FastAPI async and concurrency](https://fastapi.tiangolo.com/async/) · [FastAPI lifespan events](https://fastapi.tiangolo.com/advanced/events/) · [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) · [testcontainers-python](https://testcontainers-python.readthedocs.io/) · [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) · [CI/CD guide](ci-cd.md) · [uv in GitHub Actions](https://docs.astral.sh/uv/guides/integration/github/) · [GitHub Actions: Understanding](https://docs.github.com/en/actions/get-started/understand-github-actions)
 
@@ -144,6 +140,12 @@ Re-run the evals after each step and keep an honest log, **including the changes
 - **SSE streaming answers**, end to end through the Next.js frontend. Perceived latency improvement is large and it forces the async work from Phase 0 to be genuinely correct.
 - **Conversation memory** — `conversations` and `messages` tables, plus follow-up query rewriting so "what about the second one?" is resolved into a standalone question before retrieval.
 
+### 5.5 Record p95 ask latency
+
+The stack is already async; there is no sync-client “before” left to measure. Capture **today’s** p95 for `POST /documents/{id}/ask` (and p50 if easy) and write it to `docs/benchmarks.md`. That number is the Phase 1 baseline. Phase 2 load tests (k6/Locust, replicas, cache) compare against it — not against a reconstructed blocking path.
+
+Keep the method boring: a small concurrent `ask` run against a completed document, same hardware notes, committed with the date. Do this once the eval harness can ingest a fixture PDF so you are not measuring a cold empty index.
+
 **Resources:** [Anthropic — Introducing Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) · [Hamel Husain — Your AI Product Needs Evals](https://hamel.dev/blog/posts/evals/) and [Creating an LLM-as-a-Judge](https://hamel.dev/blog/posts/llm-judge/) · [Ragas](https://docs.ragas.io/) · [DeepEval](https://deepeval.com/docs/getting-started) · [Jason Liu — systematically improving RAG](https://jxnl.co/writing/) · [Qdrant hybrid queries](https://qdrant.tech/documentation/concepts/hybrid-queries/) · Chip Huyen, *AI Engineering* (evaluation and RAG chapters)
 
 ---
@@ -155,7 +157,7 @@ Re-run the evals after each step and keep an honest log, **including the changes
 - **Redis caching and quotas.** An embedding cache keyed by content hash (a real cost saving on re-ingest), a semantic answer cache, per-user token-bucket rate limiting, and a monthly token budget per user.
 - **Cost and token accounting.** Record prompt and completion tokens plus computed USD into a `usage_events` table on every LLM call, and expose `GET /usage`. Being able to state the marginal cost of one question is a strong and uncommon signal.
 - **Observability.** Langfuse (self-hostable, free) tracing every retrieval and generation with latency, tokens and cost; OpenTelemetry with Prometheus and Grafana for HTTP and queue metrics; Sentry for errors; structured JSON logs with a request ID propagated from the API into worker jobs.
-- **Load testing.** k6 or Locust against `ask`, reporting p50/p95/p99 and the RPS at which errors begin — **measured both before and after the Phase 0 async fix**. That contrast is the single most persuasive artifact in the project.
+- **Load testing.** k6 or Locust against `ask`, reporting p50/p95/p99 and the RPS at which errors begin — **compared to the Phase 1 p95 baseline**, then again after cache, queue, and replica changes. That contrast is the single most persuasive artifact in the project.
 - **Deployment.** Multi-stage Dockerfile, `/health/live` and `/health/ready` probes, then API + worker + Redis on Fly.io or Railway, Postgres on Neon, Qdrant Cloud, frontend on Vercel. Scale to 3 API replicas and re-run the load test to prove the shared-state fixes actually worked. Do this only after CI is a merge gate; the learning path is [ci-cd.md](ci-cd.md) Stage 5.
 - **Auth hardening.** Refresh-token rotation in httpOnly cookies, a revocation list, and email verification — replacing the `localStorage` access token.
 
@@ -187,8 +189,9 @@ Re-run the evals after each step and keep an honest log, **including the changes
 ## 9. Order of attack
 
 ```
-Phase 0 (all of it)
+Phase 0 (done)
   → eval harness
+  → p95 ask baseline (docs/benchmarks.md)
   → chunker rewrite
   → hybrid search + reranking, measured
   → streaming + conversations
@@ -197,25 +200,27 @@ Phase 0 (all of it)
   → one Phase 3 depth item
 ```
 
-Phase 0 is one week and gates the credibility of everything after it, so it is not optional. Within Phase 1, the eval harness genuinely must come first — its purpose is to tell you which of the subsequent changes were worth making.
+Phase 0 is complete and was the credibility gate. Within Phase 1, the eval harness genuinely must come first — its purpose is to tell you which of the subsequent changes were worth making. Record p95 once a fixture document can be asked; do not block the golden set on load-test tooling.
 
 ---
 
 ## 10. Task checklist
 
-**Phase 0 — foundations**
+**Phase 0 — foundations (done)**
 
-- [ ] Convert LLM, embedding, retrieval and RAG services to `AsyncOpenAI` + `AsyncQdrantClient`; `await` in `ask_doc`; record p95 before and after
-- [ ] Delete the unauthenticated `/test-upload` route and the `__main__` scratch blocks
-- [ ] Add `core/config.py` with `pydantic-settings`; populate root `.env.example`
-- [ ] Move client construction into `lifespan` + `app.state`, injected via `Depends`
-- [ ] Add the pytest suite: auth flow, cross-tenant isolation, chunker units, ingest success and failure
-- [ ] Add GitHub Actions CI running ruff, mypy and pytest
+- [x] Convert LLM, embedding, retrieval and RAG services to `AsyncOpenAI` + `AsyncQdrantClient`; `await` in `ask_doc`
+- [x] Delete the unauthenticated `/test-upload` route and the `__main__` scratch blocks
+- [x] Add `settings.py` with `pydantic-settings` + cached `get_settings()`; populate root `.env.example`
+- [x] Move client construction into `lifespan`, injected via `Depends`
+- [x] Add the pytest suite: auth flow, cross-tenant isolation, chunker units, ingest success and failure
+- [x] Add GitHub Actions CI running ruff and pytest; badges in the README
+- [ ] ~~mypy in CI~~ deferred
 
 **Phase 1 — retrieval quality**
 
 - [ ] Build and hand-verify the 40-60 question golden set
 - [ ] Implement the eval CLI (Recall@k, MRR, nDCG, LLM-as-judge faithfulness); gate CI on retrieval regressions
+- [ ] Record p95 (and p50) for `POST /documents/{id}/ask` into `docs/benchmarks.md` as the async baseline
 - [ ] Rewrite the chunker: token-aware, heading-path-preserving; persist `page_number` and `heading_path`
 - [ ] Add hybrid dense + sparse search with RRF; measure
 - [ ] Add cross-encoder reranking; measure
@@ -231,7 +236,7 @@ Phase 0 is one week and gates the credibility of everything after it, so it is n
 - [ ] Add Redis embedding cache, semantic answer cache, rate limits and per-user token quotas
 - [ ] Add `usage_events` token/USD accounting and a `GET /usage` endpoint
 - [ ] Add Langfuse tracing, OpenTelemetry + Prometheus + Grafana, Sentry, request-ID logging
-- [ ] Run k6 load tests; publish p50/p95/p99 before versus after the async fix
+- [ ] Run k6 load tests; publish p50/p95/p99 versus the Phase 1 baseline, then after cache/queue/replicas
 - [ ] Deploy API + worker + Redis + Postgres + Qdrant to the cloud; scale to 3 replicas and re-test
 - [ ] Move the JWT to httpOnly cookies with refresh rotation, revocation and email verification
 

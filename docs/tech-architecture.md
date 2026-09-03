@@ -129,7 +129,8 @@ Markdown extraction is a deliberate trade: layout-heavy PDFs (multi-column, scan
 |--------|-----|
 | **FastAPI `BackgroundTasks`** | Upload returns immediately with `status=processing`; extract/embed/upsert run after the response. Avoids blocking the HTTP request on OpenAI + PDF work. |
 | **Dedicated DB session in the task** | `run_ingestion` opens `AsyncSessionLocal()` itself. The request session from `get_db` must not be reused after the request ends. |
-| **`asyncio.to_thread`** | PyMuPDF, OpenAI sync SDK, and Qdrant client calls are blocking; they are offloaded so the event loop stays free. |
+| **`AsyncOpenAI` / `AsyncQdrantClient`** | Shared clients created in FastAPI `lifespan` ([client.py](../src/ai_doc_qa/client.py)) and injected with `Depends`. `ask` and `search` `await` embed + completion instead of blocking the event loop. |
+| **`asyncio.to_thread`** | PyMuPDF / pymupdf4llm is still sync; ingestion offloads `IngestionPipeline.run` so the loop stays free. |
 
 This is **in-process** background work. If the process dies mid-ingest, the document can remain `processing` or be marked `failed`. A durable queue (Celery, ARQ, Redis) is the usual upgrade.
 
@@ -301,7 +302,7 @@ Steps inside `IngestionService.process_document`:
 
 1. `IngestionPipeline.run` in a thread: `pymupdf4llm.to_markdown` → `StructureAwareChunker.split_section`.
 2. `DocumentChunkRepository.create_chunks` commits chunk rows (needed so Qdrant point IDs exist).
-3. `EmbeddingService.get_embeddings` (sync OpenAI client, in a thread).
+3. `EmbeddingService.get_embeddings` (`AsyncOpenAI`, shared client from lifespan).
 4. `QdrantService.upsert_chunks` (ensures collection, cosine, 1536-d).
 5. Set `completed`, or `failed` + `error_message` and re-raise.
 
@@ -403,8 +404,9 @@ It is **not** yet optimized for:
 - Refresh tokens, rate limiting, or a dedicated auth service.
 - Scanned PDFs / OCR.
 - Streaming answers or conversation memory.
+- Measured retrieval quality (golden set / evals) or a published p95 for `ask`.
 
-Those would extend this layout rather than replace the Postgres + Qdrant + OpenAI core.
+Those would extend this layout rather than replace the Postgres + Qdrant + OpenAI core. Phase 0 added tests, CI, async clients, and a single settings object; Phase 1 is evals + chunker quality.
 
 ---
 
@@ -414,8 +416,9 @@ Those would extend this layout rather than replace the Postgres + Qdrant + OpenA
 |----------|---------|
 | `POSTGRES_URL` | SQLAlchemy async URL (`postgresql+psycopg://...`). |
 | `JWT_SECRET` / `JWT_ALGO` | Token signing (HS256). |
-| `OPENAI_API_KEY` | Embeddings and ask. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access-token lifetime. |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | Embeddings and ask (`gpt-4o-mini` by default). |
 | `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | Must match Qdrant vector size. |
 | `QDRANT_URL` / `QDRANT_COLLECTION` | Vector store endpoint and collection name. |
 
-Changing embedding dimensions after data exists requires recreating the Qdrant collection and re-ingesting documents.
+Config is loaded through `get_settings()` in [settings.py](../src/ai_doc_qa/settings.py) (not at import time). Changing embedding dimensions after data exists requires recreating the Qdrant collection and re-ingesting documents.
