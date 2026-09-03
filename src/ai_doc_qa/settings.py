@@ -55,7 +55,7 @@ class Settings(BaseSettings):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
 
+
 @lru_cache
 def get_settings():
     return Settings()
-

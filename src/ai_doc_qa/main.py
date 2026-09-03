@@ -12,6 +12,7 @@ from ai_doc_qa.settings import get_settings
 
 settings = get_settings()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
