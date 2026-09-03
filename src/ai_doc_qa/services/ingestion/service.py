@@ -2,6 +2,7 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ai_doc_qa.client import get_openai_client, get_vector_db_client
 from ai_doc_qa.db.models import Document, DocumentStatus
 from ai_doc_qa.exceptions import AppError
 from ai_doc_qa.services.embedding import EmbeddingService
@@ -35,7 +36,6 @@ class IngestionService:
 
     async def process_document(self, file_path: str, document_id: int, user_id: int):
         try:
-            # 1. Extract + chunk
             pipeline = IngestionPipeline(
                 file_path=file_path,
                 document_id=document_id,
@@ -44,24 +44,18 @@ class IngestionService:
 
             chunks = await asyncio.to_thread(pipeline.run)
 
-            # 2. Store chunks in PostgreSQL
             repository = DocumentChunkRepository(self.db)
-
             saved_chunks = await repository.create_chunks(chunks)
 
-            # 3. Generate embeddings
-            embedding_service = EmbeddingService()
-
+            embedding_service = EmbeddingService(get_openai_client())
             texts = [chunk.text for chunk in saved_chunks]
             vectors = await embedding_service.get_embeddings(texts)
 
-            # 4. Store vectors in Qdrant
-            qdrant = QdrantService()
-
+            qdrant = QdrantService(get_vector_db_client())
             await qdrant.upsert_chunks(
                 chunk_ids=[chunk.id for chunk in saved_chunks],
                 vectors=vectors,
-                payloads=[  
+                payloads=[
                     {
                         "document_id": document_id,
                         "chunk_index": chunk.chunk_index,

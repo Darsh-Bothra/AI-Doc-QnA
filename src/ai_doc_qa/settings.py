@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Vector DB
     qdrant_url: str
     qdrant_collection: str
+    qdrant_api_key: str | None = None
     qdrant_score_threshold: float = 0.2
 
     # API/CORS

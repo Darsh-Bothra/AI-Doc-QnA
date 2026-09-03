@@ -39,4 +39,3 @@ class StructureAwareChunker:
         )
 
         return [section.strip() for section in section if section.strip()]
-
