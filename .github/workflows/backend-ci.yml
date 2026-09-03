@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
           enable-cache: true
       
       - name: Installing deps
-        run: uv sync --locked --dev
+        run: uv sync  --locked --dev --python 3.11
 
       - name: Lint with Ruff 
         run: uv run ruff check src
