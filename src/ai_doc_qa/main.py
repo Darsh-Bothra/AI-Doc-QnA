@@ -16,7 +16,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    init_clients()
+    await init_clients()
     yield
     await close_db()
     await close_clients()

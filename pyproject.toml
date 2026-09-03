@@ -39,6 +39,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.5",
+    "testcontainers[postgres,qdrant]>=4.10.0",
 ]
 
 [tool.ruff]
@@ -49,4 +50,30 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "Depends", "Query"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: needs Docker (Postgres + Qdrant via testcontainers)",
+]
+filterwarnings = [
+    "ignore:Qdrant client version:UserWarning:qdrant_client",
+]
+
+[tool.mypy]
+# Enable the native Pydantic plugin for accurate schema checking
+plugins = ["pydantic.mypy"]
+
+# Start with a clean baseline (feel free to turn on strict mode later)
+warn_return_any = true
+warn_unused_configs = true
+
+# Stops mypy from throwing errors when third-party libraries lack type hints
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
