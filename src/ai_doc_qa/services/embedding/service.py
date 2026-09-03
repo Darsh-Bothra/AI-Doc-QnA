@@ -1,11 +1,12 @@
 from openai import AsyncOpenAI, OpenAIError
 
 from ai_doc_qa.exceptions import EmbeddingError
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 
 class EmbeddingService:
     def __init__(self, client: AsyncOpenAI):
+        settings = get_settings()
         self.client = client
         self.model = settings.embedding_model
         self.dimensions = settings.embedding_dimensions

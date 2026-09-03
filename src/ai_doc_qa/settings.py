@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field, field_validator
@@ -54,5 +55,7 @@ class Settings(BaseSettings):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
 
+@lru_cache
+def get_settings():
+    return Settings()
 
-settings = Settings()

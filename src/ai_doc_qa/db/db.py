@@ -4,7 +4,7 @@ DB_URL -> SQLAlchemy engine -> Session Factory -> Db session
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 # Declare placeholders for your singletons
 engine = None
@@ -15,6 +15,7 @@ def init_db():
     """Initializes the singleton engine and session factory."""
     global engine, AsyncSessionLocal
 
+    settings = get_settings()
     engine = create_async_engine(
         settings.postgres_url,
         echo=settings.db_echo,

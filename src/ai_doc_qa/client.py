@@ -2,17 +2,17 @@ from httpx import AsyncClient
 from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 _openai_client: AsyncOpenAI | None = None
 _vector_db_client: AsyncQdrantClient | None = None
 _http_client: AsyncClient | None = None
 
 
-def init_clients() -> None:
+async def init_clients() -> None:
     """Instantiate shared API clients once at application startup."""
     global _openai_client, _vector_db_client, _http_client
-
+    settings = get_settings()
     _http_client = AsyncClient(timeout=30.0)
 
     _openai_client = AsyncOpenAI(

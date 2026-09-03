@@ -38,10 +38,8 @@ from ai_doc_qa.schemas import (
 from ai_doc_qa.services.rag import RAGService
 from ai_doc_qa.services.retrieval import RetrievalService
 from ai_doc_qa.services.vector_store import QdrantService
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 from ai_doc_qa.utils import run_ingestion_service
-
-settings.upload_dir.mkdir(exist_ok=True)
 
 router = APIRouter(prefix="/documents", tags=["Document processing route"])
 
@@ -84,6 +82,7 @@ async def upload_docs(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    settings = get_settings()
     if file.content_type not in settings.allowed_content_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

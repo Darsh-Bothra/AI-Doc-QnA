@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_doc_qa.api.routes import auth_router, docs_router
 from ai_doc_qa.client import close_clients, init_clients
 from ai_doc_qa.db.db import close_db, get_db, init_db
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
+settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

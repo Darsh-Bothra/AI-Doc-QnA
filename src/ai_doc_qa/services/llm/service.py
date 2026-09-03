@@ -2,7 +2,7 @@ from openai import AsyncOpenAI, OpenAIError
 
 from ai_doc_qa.exceptions import LLMGenerationError
 from ai_doc_qa.services.rag.prompt import RAG_SYSTEM_PROMPT
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 
 class LLMService:
@@ -10,6 +10,7 @@ class LLMService:
         self.client = client
 
     async def generate(self, context: str):
+        settings = get_settings()
         try:
             response = await self.client.chat.completions.create(
                 model=settings.openai_model,

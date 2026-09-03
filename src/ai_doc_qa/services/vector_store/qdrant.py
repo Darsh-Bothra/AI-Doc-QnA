@@ -6,11 +6,12 @@ from qdrant_client.http.exceptions import (
 from qdrant_client.http.models import Distance, PointStruct, VectorParams
 
 from ai_doc_qa.exceptions import VectorStoreError
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 
 class QdrantService:
     def __init__(self, client: AsyncQdrantClient):
+        settings = get_settings()
         self.client = client
         self.collection = settings.qdrant_collection
         self.dimensions = settings.embedding_dimensions

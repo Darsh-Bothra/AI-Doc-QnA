@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 
-from ai_doc_qa.settings import settings
+from ai_doc_qa.settings import get_settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -15,6 +15,7 @@ def create_access_token(
     data: dict,
     expires_delta: timedelta | None = None,
 ):
+    settings = get_settings()
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
@@ -35,6 +36,7 @@ def create_access_token(
 
 
 def decode_access_token(token: Annotated[str, Depends(oauth2_scheme)]):
+    settings = get_settings()
     cred_execption = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Can't validate credentials",
