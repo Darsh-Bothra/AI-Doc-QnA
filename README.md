@@ -13,8 +13,6 @@ A FastAPI backend for **question answering over uploaded PDFs**. Users register 
 
 Search and ask only work on documents whose status is `completed`.
 
-**Status:** Phase 0 (correctness, tests, CI) is done. The next work is [Phase 1](docs/roadmap.md#5-phase-1--make-retrieval-good-and-prove-it-3-weeks) — a retrieval eval harness, a p95 `ask` baseline in `docs/benchmarks.md`, then token-aware chunking. See [docs/roadmap.md](docs/roadmap.md) for the full sequence.
-
 For a full walkthrough of the stack, why each piece exists, and how ingestion/RAG fit together (including diagrams), see **[docs/tech-architecture.md](docs/tech-architecture.md)**. To learn CI/CD on this repo (GitHub Actions, tests, then delivery), see **[docs/ci-cd.md](docs/ci-cd.md)**.
 
 ## Stack
