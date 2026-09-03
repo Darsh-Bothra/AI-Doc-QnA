@@ -27,5 +27,7 @@ class RAGService:
             )
 
         context = "\n\n".join(context_parts)
-        response = await self.llm.generate(context=user_prompt(context, question=question))
+        response = await self.llm.generate(
+            context=user_prompt(context, question=question)
+        )
         return response, hits

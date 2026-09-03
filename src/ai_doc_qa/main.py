@@ -40,6 +40,7 @@ settings.upload_dir.mkdir(exist_ok=True)
 def test_route():
     return {"message": "Testing route"}
 
+
 @app.get("/health/db")
 async def test_connection(db: AsyncSession = Depends(get_db)):
     res = await db.execute(text("SELECT 1"))
